@@ -1,0 +1,29 @@
+{
+  "name": "@hey/og",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 4785",
+    "start": "next start --port 4785",
+    "test": "vitest run",
+    "typecheck": "tsc --pretty"
+  },
+  "dependencies": {
+    "@hey/config": "workspace:*",
+    "@hey/data": "workspace:*",
+    "@hey/helpers": "workspace:*",
+    "@hey/lens": "workspace:*",
+    "apollo-utilities": "^1.3.4",
+    "graphql": "^16.9.0",
+    "next": "^15.0.2",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.4",
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

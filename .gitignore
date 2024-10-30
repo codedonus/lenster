@@ -6,9 +6,6 @@ node_modules
 # testing
 coverage
 
-# Sentry
-.sentryclirc
-
 # next.js
 .next/
 out/
@@ -33,24 +30,14 @@ yarn-error.log*
 .env.production.local
 .env
 
-# turbo
-.turbo
-
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
-
-# cloudflare workers
-.dev.vars
-
-# playwright
-.gitsigners
 
 # JetBrains IDE
 .idea
 
-test-results/
-playwright-report/
-playwright/.cache/
+# Service Workers
+sw.js
+
+# Node build artifacts
+dist

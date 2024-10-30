@@ -1,0 +1,15 @@
+fragment ProfileMetadataFields on ProfileMetadata {
+  displayName
+  bio
+  picture {
+    ... on ImageSet {
+      ...ImageSetFields
+    }
+  }
+  coverPicture {
+    ...ImageSetFields
+  }
+  attributes {
+    ...MetadataAttributeFields
+  }
+}

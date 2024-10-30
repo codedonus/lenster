@@ -1,40 +1,58 @@
-import MetaTags from '@components/Common/MetaTags';
-import { Mixpanel } from '@lib/mixpanel';
-import type { NextPage } from 'next';
-import { useRouter } from 'next/router';
-import { useEffect } from 'react';
-import Custom404 from 'src/pages/404';
-import { PAGEVIEW } from 'src/tracking';
-import { GridItemEight, GridItemFour, GridLayout } from 'ui';
-
-import Profiles from './Profiles';
-import Publications from './Publications';
-import Sidebar from './Sidebar';
+import Sidebar from "@components/Shared/Sidebar";
+import { Leafwatch } from "@helpers/leafwatch";
+import { PencilSquareIcon, UsersIcon } from "@heroicons/react/24/outline";
+import { PAGEVIEW } from "@hey/data/tracking";
+import { GridItemEight, GridItemFour, GridLayout } from "@hey/ui";
+import type { NextPage } from "next";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
+import Custom404 from "src/pages/404";
+import Profiles from "./Profiles";
+import Publications from "./Publications";
 
 const Search: NextPage = () => {
   const { query } = useRouter();
+  const searchText = Array.isArray(query.q)
+    ? encodeURIComponent(query.q.join(" "))
+    : encodeURIComponent(query.q || "");
 
   useEffect(() => {
-    Mixpanel.track(PAGEVIEW, { page: 'search' });
+    Leafwatch.track(PAGEVIEW, { page: "search" });
   }, []);
 
-  if (!query.q || !['pubs', 'profiles'].includes(query.type as any)) {
+  if (!query.q || !["profiles", "pubs"].includes(query.type as string)) {
     return <Custom404 />;
   }
 
+  const settingsSidebarItems = [
+    {
+      active: query.type === "pubs",
+      icon: <PencilSquareIcon className="size-4" />,
+      title: "Publications",
+      url: `/search?q=${searchText}&type=pubs`
+    },
+    {
+      active: query.type === "profiles",
+      icon: <UsersIcon className="size-4" />,
+      title: "Profiles",
+      url: `/search?q=${searchText}&type=profiles`
+    }
+  ];
+
   return (
-    <>
-      <MetaTags />
-      <GridLayout>
-        <GridItemFour>
-          <Sidebar />
-        </GridItemFour>
-        <GridItemEight className="space-y-5">
-          {query.type === 'profiles' && <Profiles query={query.q} />}
-          {query.type === 'pubs' && <Publications query={query.q} />}
-        </GridItemEight>
-      </GridLayout>
-    </>
+    <GridLayout>
+      <GridItemFour>
+        <Sidebar items={settingsSidebarItems} />
+      </GridItemFour>
+      <GridItemEight>
+        {query.type === "profiles" ? (
+          <Profiles query={query.q as string} />
+        ) : null}
+        {query.type === "pubs" ? (
+          <Publications query={query.q as string} />
+        ) : null}
+      </GridItemEight>
+    </GridLayout>
   );
 };
 

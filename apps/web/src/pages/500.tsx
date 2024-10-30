@@ -1,28 +1,29 @@
-import MetaTags from '@components/Common/MetaTags';
-import { HomeIcon } from '@heroicons/react/outline';
-import { Trans } from '@lingui/macro';
-import { APP_NAME } from 'data/constants';
-import Link from 'next/link';
-import type { FC } from 'react';
-import { Button } from 'ui';
+import MetaTags from "@components/Common/MetaTags";
+import { heyFont } from "@helpers/fonts";
+import { HomeIcon } from "@heroicons/react/24/outline";
+import { APP_NAME } from "@hey/data/constants";
+import { Button, H2 } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import Link from "next/link";
+import type { FC } from "react";
 
 const Custom500: FC = () => {
   return (
-    <div className="page-center flex-col">
+    <div className={cn("page-center flex-col", heyFont.className)}>
       <MetaTags title={`500 • ${APP_NAME}`} />
       <div className="py-10 text-center">
-        <h1 className="mb-4 text-3xl font-bold">
-          <Trans>Looks like something went wrong!</Trans>
-        </h1>
-        <div className="lt-text-gray-500 mb-4">
-          <Trans>
-            We track these errors automatically, but if the problem persists feel free to contact us. In the
-            meantime, try refreshing.
-          </Trans>
+        <H2 className="mb-4">Looks like something went wrong!</H2>
+        <div className="ld-text-gray-500 mb-4">
+          We track these errors automatically, but if the problem persists feel
+          free to contact us. In the meantime, try refreshing.
         </div>
         <Link href="/">
-          <Button className="item-center mx-auto flex" size="lg" icon={<HomeIcon className="h-4 w-4" />}>
-            <Trans>Go to home</Trans>
+          <Button
+            className="mx-auto flex items-center"
+            icon={<HomeIcon className="size-4" />}
+            size="lg"
+          >
+            Go to home
           </Button>
         </Link>
       </div>

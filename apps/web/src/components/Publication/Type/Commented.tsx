@@ -1,19 +1,18 @@
-import type { Comment } from 'lens';
-import type { FC } from 'react';
-
-import ThreadBody from '../ThreadBody';
+import type { Comment } from "@hey/lens";
+import type { FC } from "react";
+import ThreadBody from "../ThreadBody";
 
 interface CommentedProps {
   publication: Comment;
 }
 
 const Commented: FC<CommentedProps> = ({ publication }) => {
-  const commentOn: Comment | any = publication?.commentOn;
-  const mainPost = commentOn?.mainPost;
+  const commentOn: any | Comment = publication?.commentOn;
+  const root = commentOn?.root;
 
   return (
     <>
-      {mainPost ? <ThreadBody publication={mainPost} /> : null}
+      {root ? <ThreadBody publication={root} /> : null}
       <ThreadBody publication={commentOn} />
     </>
   );

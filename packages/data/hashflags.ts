@@ -1,18 +1,26 @@
+import { prideHashtags } from "./pride-hashtags";
+
 export const hashflags: Record<string, string> = {
-  lenster: 'lenster',
-  lenstube: 'lenstube',
-  bitcoin: 'bitcoin',
-  btc: 'bitcoin',
-  ethereum: 'ethereum',
-  eth: 'ethereum',
-  lens: 'lens',
-  bts: 'bts',
-  btsarmy: 'btsarmy',
-  blm: 'blm',
-  blacklivesmatter: 'blm',
-  bhm: 'blm',
-  pride: 'pride',
-  lgbt: 'pride',
-  voted: 'voted',
-  hashtag: 'hashtag'
+  bhm: "blm",
+  bitcoin: "bitcoin",
+  blacklivesmatter: "blm",
+  blm: "blm",
+  bonsai: "bonsai",
+  btc: "bitcoin",
+  bts: "bts",
+  btsarmy: "btsarmy",
+  eth: "ethereum",
+  ethereum: "ethereum",
+  hashtag: "hashtag",
+  hey: "hey",
+  lens: "lens",
+  tape: "tape",
+  voted: "voted",
+  ...(() => {
+    const acc: Record<string, string> = {};
+    for (const cur of prideHashtags) {
+      acc[cur] = "pride";
+    }
+    return acc;
+  })()
 };

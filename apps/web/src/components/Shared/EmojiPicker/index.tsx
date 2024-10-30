@@ -1,27 +1,53 @@
-import { Menu } from '@headlessui/react';
-import { EmojiHappyIcon } from '@heroicons/react/outline';
-import type { FC } from 'react';
-
-import MenuTransition from '../MenuTransition';
-import List from './List';
+import { FaceSmileIcon } from "@heroicons/react/24/outline";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import { Tooltip } from "@hey/ui";
+import { useClickAway } from "@uidotdev/usehooks";
+import type { Dispatch, FC, MutableRefObject, SetStateAction } from "react";
+import List from "./List";
 
 interface EmojiPickerProps {
-  emoji?: string | null;
+  emoji?: null | string;
   setEmoji: (emoji: string) => void;
+  setShowEmojiPicker: Dispatch<SetStateAction<boolean>>;
+  showEmojiPicker: boolean;
 }
 
-const EmojiPicker: FC<EmojiPickerProps> = ({ emoji, setEmoji }) => {
+const EmojiPicker: FC<EmojiPickerProps> = ({
+  emoji,
+  setEmoji,
+  setShowEmojiPicker,
+  showEmojiPicker
+}) => {
+  const listRef = useClickAway(() => {
+    setShowEmojiPicker(false);
+  }) as MutableRefObject<HTMLDivElement>;
+
   return (
-    <Menu as="div" className="relative">
-      <Menu.Button className="rounded-md p-1 hover:bg-gray-300 hover:bg-opacity-20">
-        {emoji ? <span>{emoji}</span> : <EmojiHappyIcon className="h-5 w-5" />}
-      </Menu.Button>
-      <MenuTransition>
-        <div className="fixed z-[5] mt-1 w-2/4 rounded-xl border bg-white shadow-sm focus:outline-none dark:border-gray-700 dark:bg-gray-900">
-          <List setEmoji={setEmoji} />
-        </div>
-      </MenuTransition>
-    </Menu>
+    <Tooltip content="Emoji" placement="top">
+      <div className="relative" ref={listRef}>
+        <button
+          aria-label="Emoji"
+          className="rounded-full outline-offset-8"
+          onClick={(e) => {
+            e.preventDefault();
+            stopEventPropagation(e);
+            setShowEmojiPicker(!showEmojiPicker);
+          }}
+          type="button"
+        >
+          {emoji ? (
+            <span className="text-lg">{emoji}</span>
+          ) : (
+            <FaceSmileIcon className="size-5" />
+          )}
+        </button>
+        {showEmojiPicker ? (
+          <div className="absolute z-[5] mt-1 w-[300px] rounded-xl border bg-white shadow-sm focus:outline-none dark:border-gray-700 dark:bg-gray-900">
+            <List setEmoji={setEmoji} />
+          </div>
+        ) : null}
+      </div>
+    </Tooltip>
   );
 };
 

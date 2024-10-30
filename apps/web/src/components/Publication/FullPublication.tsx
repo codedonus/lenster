@@ -1,61 +1,124 @@
-import { formatTime } from '@lib/formatTime';
-import dayjs from 'dayjs';
-import type { Publication } from 'lens';
-import getAppName from 'lib/getAppName';
-import type { FC } from 'react';
-
-import PublicationActions from './Actions';
-import HiddenPublication from './HiddenPublication';
-import PublicationBody from './PublicationBody';
-import PublicationHeader from './PublicationHeader';
-import PublicationStats from './PublicationStats';
-import PublicationType from './Type';
+import { QueueListIcon } from "@heroicons/react/24/outline";
+import { FeatureFlag } from "@hey/data/feature-flags";
+import getProfileDetails, {
+  GET_PROFILE_DETAILS_QUERY_KEY
+} from "@hey/helpers/api/getProfileDetails";
+import formatDate from "@hey/helpers/datetime/formatDate";
+import getAppName from "@hey/helpers/getAppName";
+import { isMirrorPublication } from "@hey/helpers/publicationHelpers";
+import type { AnyPublication } from "@hey/lens";
+import { Card, Tooltip } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import { useQuery } from "@tanstack/react-query";
+import { useFlag } from "@unleash/proxy-client-react";
+import type { FC } from "react";
+import usePushToImpressions from "src/hooks/usePushToImpressions";
+import { useHiddenCommentFeedStore } from ".";
+import PublicationActions from "./Actions";
+import HiddenPublication from "./HiddenPublication";
+import PublicationAvatar from "./PublicationAvatar";
+import PublicationBody from "./PublicationBody";
+import PublicationHeader from "./PublicationHeader";
+import PublicationStats from "./PublicationStats";
+import Translate from "./Translate";
+import PublicationType from "./Type";
 
 interface FullPublicationProps {
-  publication: Publication;
+  hasHiddenComments: boolean;
+  publication: AnyPublication;
 }
 
-const FullPublication: FC<FullPublicationProps> = ({ publication }) => {
-  const isMirror = publication.__typename === 'Mirror';
-  const timestamp = isMirror ? publication?.mirrorOf?.createdAt : publication?.createdAt;
+const FullPublication: FC<FullPublicationProps> = ({
+  hasHiddenComments,
+  publication
+}) => {
+  const { setShowHiddenComments, showHiddenComments } =
+    useHiddenCommentFeedStore();
+  const isStaff = useFlag(FeatureFlag.Staff);
 
-  // Count check to show the publication stats only if the publication has a comment, like or collect
-  const mirrorCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalAmountOfMirrors
-    : publication?.stats?.totalAmountOfMirrors;
-  const reactionCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalUpvotes
-    : publication?.stats?.totalUpvotes;
-  const collectCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalAmountOfCollects
-    : publication?.stats?.totalAmountOfCollects;
-  const showStats = mirrorCount > 0 || reactionCount > 0 || collectCount > 0;
+  const targetPublication = isMirrorPublication(publication)
+    ? publication?.mirrorOn
+    : publication;
+
+  const { by, createdAt, publishedOn } = targetPublication;
+
+  usePushToImpressions(targetPublication.id);
+
+  const { data: profileDetails } = useQuery({
+    enabled: Boolean(by.id),
+    queryFn: () => getProfileDetails(by.id || ""),
+    queryKey: [GET_PROFILE_DETAILS_QUERY_KEY, by.id]
+  });
+
+  const isSuspended = isStaff ? false : profileDetails?.isSuspended;
+
+  if (isSuspended) {
+    return (
+      <Card className="!bg-gray-100 dark:!bg-gray-800 m-5" forceRounded>
+        <div className="px-4 py-3 text-sm">
+          Author Profile has been suspended!
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <article className="p-5" data-testid={`publication-${publication.id}`}>
+    <article className="p-5">
       <PublicationType publication={publication} showType />
-      <div>
-        <PublicationHeader publication={publication} />
-        <div className="ml-[53px]">
-          {publication?.hidden ? (
-            <HiddenPublication type={publication.__typename} />
+      <div className="flex items-start space-x-3">
+        <PublicationAvatar publication={publication} />
+        <div className="w-[calc(100%-55px)]">
+          <PublicationHeader publication={targetPublication} />
+          {targetPublication.isHidden ? (
+            <HiddenPublication type={targetPublication.__typename} />
           ) : (
             <>
-              <PublicationBody publication={publication} />
-              <div className="lt-text-gray-500 my-3 text-sm">
-                <span title={formatTime(timestamp)}>
-                  {dayjs(new Date(timestamp)).format('hh:mm A · MMM D, YYYY')}
-                </span>
-                {publication?.appId ? <span> · Posted via {getAppName(publication?.appId)}</span> : null}
+              <PublicationBody
+                contentClassName="full-page-publication-markup"
+                publication={targetPublication}
+              />
+              <Translate publication={targetPublication} />
+              <div className="ld-text-gray-500 my-3 text-sm">
+                <span>{formatDate(createdAt, "hh:mm A · MMM D, YYYY")}</span>
+                {publishedOn?.id ? (
+                  <span> · Posted via {getAppName(publishedOn.id)}</span>
+                ) : null}
               </div>
-              {showStats && (
-                <>
-                  <div className="divider" />
-                  <PublicationStats publication={publication} />
-                </>
-              )}
+              <PublicationStats
+                publicationId={targetPublication.id}
+                publicationStats={targetPublication.stats}
+              />
               <div className="divider" />
-              <PublicationActions publication={publication} showCount />
+              <div className="flex items-center justify-between">
+                <PublicationActions publication={targetPublication} showCount />
+                {hasHiddenComments ? (
+                  <div className="mt-2">
+                    <button
+                      aria-label="Like"
+                      className={cn(
+                        showHiddenComments
+                          ? "text-green-500 hover:bg-green-300/20"
+                          : "ld-text-gray-500 hover:bg-gray-300/20",
+                        "rounded-full p-1.5 outline-offset-2"
+                      )}
+                      onClick={() => setShowHiddenComments(!showHiddenComments)}
+                      type="button"
+                    >
+                      <Tooltip
+                        content={
+                          showHiddenComments
+                            ? "Hide hidden comments"
+                            : "Show hidden comments"
+                        }
+                        placement="top"
+                        withDelay
+                      >
+                        <QueueListIcon className="size-5" />
+                      </Tooltip>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </>
           )}
         </div>

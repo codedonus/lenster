@@ -1,41 +1,63 @@
-import { BadgeCheckIcon } from '@heroicons/react/solid';
-import type { Profile } from 'lens';
-import formatHandle from 'lib/formatHandle';
-import getAvatar from 'lib/getAvatar';
-import isVerified from 'lib/isVerified';
-import Link from 'next/link';
-import type { FC } from 'react';
-import { Image } from 'ui';
+import Misuse from "@components/Shared/Profile/Icons/Misuse";
+import Verified from "@components/Shared/Profile/Icons/Verified";
+import ProfilePreview from "@components/Shared/ProfilePreview";
+import getAvatar from "@hey/helpers/getAvatar";
+import getLennyURL from "@hey/helpers/getLennyURL";
+import getProfile from "@hey/helpers/getProfile";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { Profile } from "@hey/lens";
+import { Image } from "@hey/ui";
+import Link from "next/link";
+import type { FC, SyntheticEvent } from "react";
 
 interface NotificationProfileProps {
   profile: Profile;
 }
 
-export const NotificationProfileAvatar: FC<NotificationProfileProps> = ({ profile }) => {
+export const NotificationProfileAvatar: FC<NotificationProfileProps> = ({
+  profile
+}) => {
+  const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    target.src = getLennyURL(profile.id);
+  };
+
   return (
-    <Link href={`/u/${formatHandle(profile?.handle)}`}>
-      <Image
-        onError={({ currentTarget }) => {
-          currentTarget.src = getAvatar(profile, false);
-        }}
-        src={getAvatar(profile)}
-        className="h-8 w-8 rounded-full border bg-gray-200 dark:border-gray-700"
-        height={32}
-        width={32}
-        alt={formatHandle(profile?.handle)}
-      />
-    </Link>
+    <ProfilePreview handle={profile.handle?.fullHandle} id={profile.id}>
+      <Link
+        className="rounded-full outline-offset-2"
+        href={getProfile(profile).link}
+        onClick={stopEventPropagation}
+      >
+        <Image
+          alt={profile.id}
+          className="size-7 rounded-full border bg-gray-200 sm:size-8 dark:border-gray-700"
+          height={32}
+          onError={handleImageError}
+          src={getAvatar(profile)}
+          width={32}
+        />
+      </Link>
+    </ProfilePreview>
   );
 };
 
-export const NotificationProfileName: FC<NotificationProfileProps> = ({ profile }) => {
+export const NotificationProfileName: FC<NotificationProfileProps> = ({
+  profile
+}) => {
+  const profileLink = getProfile(profile).link;
+
   return (
-    <Link
-      href={`/u/${formatHandle(profile?.handle)}`}
-      className="inline-flex items-center space-x-1 font-bold"
-    >
-      <div>{profile?.name ?? formatHandle(profile?.handle)}</div>
-      {isVerified(profile?.id) && <BadgeCheckIcon className="text-brand h-4 w-4" />}
-    </Link>
+    <ProfilePreview handle={profile.handle?.fullHandle} id={profile.id}>
+      <Link
+        className="inline-flex items-center space-x-1 font-bold outline-none hover:underline focus:underline"
+        href={profileLink}
+        onClick={stopEventPropagation}
+      >
+        <span>{getProfile(profile).displayName}</span>
+        <Verified id={profile.id} iconClassName="size-4" />
+        <Misuse id={profile.id} iconClassName="size-4" />
+      </Link>
+    </ProfilePreview>
   );
 };

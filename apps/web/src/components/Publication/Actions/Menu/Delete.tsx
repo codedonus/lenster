@@ -1,27 +1,25 @@
-import { Menu } from '@headlessui/react';
-import { TrashIcon } from '@heroicons/react/outline';
-import clsx from 'clsx';
-import type { Publication } from 'lens';
-import { stopEventPropagation } from 'lib/stopEventPropagation';
-import type { FC } from 'react';
-import { useGlobalAlertStateStore } from 'src/store/alerts';
+import { MenuItem } from "@headlessui/react";
+import { TrashIcon } from "@heroicons/react/24/outline";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { MirrorablePublication } from "@hey/lens";
+import cn from "@hey/ui/cn";
+import type { FC } from "react";
+import { useGlobalAlertStateStore } from "src/store/non-persisted/useGlobalAlertStateStore";
 
 interface DeleteProps {
-  publication: Publication;
+  publication: MirrorablePublication;
 }
 
 const Delete: FC<DeleteProps> = ({ publication }) => {
-  const setShowPublicationDeleteAlert = useGlobalAlertStateStore(
-    (state) => state.setShowPublicationDeleteAlert
-  );
+  const { setShowPublicationDeleteAlert } = useGlobalAlertStateStore();
 
   return (
-    <Menu.Item
+    <MenuItem
       as="div"
-      className={({ active }) =>
-        clsx(
-          { 'dropdown-active': active },
-          'm-2 block cursor-pointer rounded-lg px-4 py-1.5 text-sm text-red-500'
+      className={({ focus }) =>
+        cn(
+          { "dropdown-active": focus },
+          "m-2 block cursor-pointer rounded-lg px-2 py-1.5 text-red-500 text-sm"
         )
       }
       onClick={(event) => {
@@ -30,10 +28,10 @@ const Delete: FC<DeleteProps> = ({ publication }) => {
       }}
     >
       <div className="flex items-center space-x-2">
-        <TrashIcon className="h-4 w-4" />
+        <TrashIcon className="size-4" />
         <div>Delete</div>
       </div>
-    </Menu.Item>
+    </MenuItem>
   );
 };
 

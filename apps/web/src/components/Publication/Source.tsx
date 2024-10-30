@@ -1,25 +1,30 @@
-import { apps } from 'data/apps';
-import { STATIC_IMAGES_URL } from 'data/constants';
-import type { Publication } from 'lens';
-import type { FC } from 'react';
-import { Tooltip } from 'ui';
+import { APP_NAME, STATIC_IMAGES_URL } from "@hey/data/constants";
+import { FeatureFlag } from "@hey/data/feature-flags";
+import { useFlag } from "@unleash/proxy-client-react";
+import type { FC } from "react";
 
 interface SourceProps {
-  publication: Publication;
+  publishedOn: string | undefined;
 }
 
-const Source: FC<SourceProps> = ({ publication }) => {
-  const { appId } = publication;
-  const show = apps.includes(appId);
+const Source: FC<SourceProps> = ({ publishedOn }) => {
+  const enabled = useFlag(FeatureFlag.Staff);
+  const show = publishedOn === APP_NAME.toLowerCase();
 
-  if (!show) {
+  if (!enabled || !show) {
     return null;
   }
 
   return (
-    <Tooltip content={appId} placement="top">
-      <img className="h-4 w-4 rounded-full" src={`${STATIC_IMAGES_URL}/source/${appId}.jpeg`} alt={appId} />
-    </Tooltip>
+    <span className="ld-text-gray-500 flex items-center">
+      <span className="mx-1">·</span>
+      <img
+        alt="Logo"
+        className="mt-0.5 h-3.5 rounded-sm"
+        height={14}
+        src={`${STATIC_IMAGES_URL}/app-icon/0.png`}
+      />
+    </span>
   );
 };
 

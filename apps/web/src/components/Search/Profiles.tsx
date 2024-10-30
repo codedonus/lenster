@@ -1,83 +1,87 @@
-import UserProfilesShimmer from '@components/Shared/Shimmer/UserProfilesShimmer';
-import UserProfile from '@components/Shared/UserProfile';
-import { UsersIcon } from '@heroicons/react/outline';
-import { t, Trans } from '@lingui/macro';
-import type { Profile, ProfileSearchResult, SearchQueryRequest } from 'lens';
-import { CustomFiltersTypes, SearchRequestTypes, useSearchProfilesQuery } from 'lens';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useInView } from 'react-cool-inview';
-import { Card, EmptyState, ErrorMessage } from 'ui';
+import SingleProfilesShimmer from "@components/Shared/Shimmer/SingleProfilesShimmer";
+import SingleProfile from "@components/Shared/SingleProfile";
+import { UsersIcon } from "@heroicons/react/24/outline";
+import { ProfileLinkSource } from "@hey/data/tracking";
+import type { Profile, ProfileSearchRequest } from "@hey/lens";
+import {
+  CustomFiltersType,
+  LimitType,
+  useSearchProfilesQuery
+} from "@hey/lens";
+import { Card, EmptyState, ErrorMessage } from "@hey/ui";
+import type { FC } from "react";
+import { Virtuoso } from "react-virtuoso";
 
 interface ProfilesProps {
-  query: string | string[];
+  query: string;
 }
 
 const Profiles: FC<ProfilesProps> = ({ query }) => {
-  const [hasMore, setHasMore] = useState(true);
-
-  // Variables
-  const request: SearchQueryRequest = {
+  const request: ProfileSearchRequest = {
+    limit: LimitType.TwentyFive,
     query,
-    type: SearchRequestTypes.Profile,
-    customFilters: [CustomFiltersTypes.Gardeners],
-    limit: 10
+    where: { customFilters: [CustomFiltersType.Gardeners] }
   };
 
-  const { data, loading, error, fetchMore } = useSearchProfilesQuery({
-    variables: { request },
-    skip: !query
+  const { data, error, fetchMore, loading } = useSearchProfilesQuery({
+    skip: !query,
+    variables: { request }
   });
 
-  const search = data?.search as ProfileSearchResult;
+  const search = data?.searchProfiles;
   const profiles = search?.items;
   const pageInfo = search?.pageInfo;
+  const hasMore = pageInfo?.next;
 
-  const { observe } = useInView({
-    onChange: async ({ inView }) => {
-      if (!inView || !hasMore) {
-        return;
-      }
-
+  const onEndReached = async () => {
+    if (hasMore) {
       await fetchMore({
         variables: { request: { ...request, cursor: pageInfo?.next } }
-      }).then(({ data }) => {
-        const search = data?.search as ProfileSearchResult;
-        setHasMore(search?.items?.length > 0);
       });
     }
-  });
+  };
 
   if (loading) {
-    return <UserProfilesShimmer isBig />;
+    return <SingleProfilesShimmer isBig />;
   }
 
   if (profiles?.length === 0) {
     return (
       <EmptyState
+        icon={<UsersIcon className="size-8" />}
         message={
-          <Trans>
+          <span>
             No profiles for <b>&ldquo;{query}&rdquo;</b>
-          </Trans>
+          </span>
         }
-        icon={<UsersIcon className="text-brand h-8 w-8" />}
       />
     );
   }
 
   if (error) {
-    return <ErrorMessage title={t`Failed to load profiles`} error={error} />;
+    return <ErrorMessage error={error} title="Failed to load profiles" />;
   }
 
   return (
-    <div className="space-y-3">
-      {profiles?.map((profile: Profile) => (
-        <Card key={profile?.id} className="p-5">
-          <UserProfile profile={profile} showBio isBig />
+    <Virtuoso
+      className="[&>div>div]:space-y-3"
+      computeItemKey={(index, profile) => `${profile.id}-${index}`}
+      data={profiles}
+      endReached={onEndReached}
+      itemContent={(_, profile) => (
+        <Card className="p-5">
+          <SingleProfile
+            hideFollowButton
+            hideUnfollowButton
+            isBig
+            profile={profile as Profile}
+            showBio
+            source={ProfileLinkSource.Search}
+          />
         </Card>
-      ))}
-      {hasMore && <span ref={observe} />}
-    </div>
+      )}
+      useWindowScroll
+    />
   );
 };
 

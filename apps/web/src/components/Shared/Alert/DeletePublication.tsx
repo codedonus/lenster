@@ -1,41 +1,59 @@
-import { Mixpanel } from '@lib/mixpanel';
-import { t } from '@lingui/macro';
-import { useHidePublicationMutation } from 'lens';
-import { publicationKeyFields } from 'lens/apollo/lib';
-import type { FC } from 'react';
-import { toast } from 'react-hot-toast';
-import { useGlobalAlertStateStore } from 'src/store/alerts';
-import { PUBLICATION } from 'src/tracking';
-import { Alert } from 'ui/Alert';
+import errorToast from "@helpers/errorToast";
+import { Leafwatch } from "@helpers/leafwatch";
+import { Errors } from "@hey/data/errors";
+import { PUBLICATION } from "@hey/data/tracking";
+import { useHidePublicationMutation } from "@hey/lens";
+import { Alert } from "@hey/ui";
+import type { FC } from "react";
+import { toast } from "react-hot-toast";
+import { useGlobalAlertStateStore } from "src/store/non-persisted/useGlobalAlertStateStore";
+import { useProfileStatus } from "src/store/non-persisted/useProfileStatus";
 
 const DeletePublication: FC = () => {
-  const showPublicationDeleteAlert = useGlobalAlertStateStore((state) => state.showPublicationDeleteAlert);
-  const setShowPublicationDeleteAlert = useGlobalAlertStateStore(
-    (state) => state.setShowPublicationDeleteAlert
-  );
-  const deletingPublication = useGlobalAlertStateStore((state) => state.deletingPublication);
+  const {
+    deletingPublication,
+    setShowPublicationDeleteAlert,
+    showPublicationDeleteAlert
+  } = useGlobalAlertStateStore();
+  const { isSuspended } = useProfileStatus();
 
   const [hidePost, { loading }] = useHidePublicationMutation({
     onCompleted: () => {
       setShowPublicationDeleteAlert(false, null);
-      Mixpanel.track(PUBLICATION.DELETE);
-      toast.success(t`Publication deleted successfully`);
+      toast.success("Publication deleted");
+      Leafwatch.track(PUBLICATION.DELETE);
     },
     update: (cache) => {
-      cache.evict({ id: publicationKeyFields(deletingPublication) });
+      cache.evict({
+        id: `${deletingPublication?.__typename}:${deletingPublication?.id}`
+      });
     }
   });
 
+  const deletePublication = async () => {
+    if (isSuspended) {
+      return toast.error(Errors.Suspended);
+    }
+
+    try {
+      return await hidePost({
+        variables: { request: { for: deletingPublication?.id } }
+      });
+    } catch (error) {
+      errorToast(error);
+    }
+  };
+
   return (
     <Alert
-      title={t`Delete Publication?`}
-      description={t`This can't be undone and it will be removed from your profile, the timeline of any accounts that follow you, and from search results.`}
-      confirmText={t`Delete`}
-      show={showPublicationDeleteAlert}
+      confirmText="Delete"
+      description="This can't be undone and it will be removed from your profile, the timeline of any accounts that follow you, and from search results."
       isDestructive
       isPerformingAction={loading}
-      onConfirm={() => hidePost({ variables: { request: { publicationId: deletingPublication?.id } } })}
       onClose={() => setShowPublicationDeleteAlert(false, null)}
+      onConfirm={deletePublication}
+      show={showPublicationDeleteAlert}
+      title="Delete Publication?"
     />
   );
 };

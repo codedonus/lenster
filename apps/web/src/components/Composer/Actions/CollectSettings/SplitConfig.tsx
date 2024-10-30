@@ -1,29 +1,40 @@
-import Beta from '@components/Shared/Badges/Beta';
-import ToggleWithHelper from '@components/Shared/ToggleWithHelper';
-import { PlusIcon, SwitchHorizontalIcon, UsersIcon, XCircleIcon } from '@heroicons/react/outline';
-import isValidEthAddress from '@lib/isValidEthAddress';
-import { t, Trans } from '@lingui/macro';
-import { HANDLE_SUFFIX, LENSPROTOCOL_HANDLE } from 'data/constants';
-import { useProfileLazyQuery } from 'lens';
-import splitNumber from 'lib/splitNumber';
-import type { FC } from 'react';
-import { useAppStore } from 'src/store/app';
-import { useCollectModuleStore } from 'src/store/collect-module';
-import { Button, Input } from 'ui';
+import SearchProfiles from "@components/Shared/SearchProfiles";
+import ToggleWithHelper from "@components/Shared/ToggleWithHelper";
+import {
+  ArrowsRightLeftIcon,
+  PlusIcon,
+  UsersIcon,
+  XCircleIcon
+} from "@heroicons/react/24/outline";
+import { ADDRESS_PLACEHOLDER } from "@hey/data/constants";
+import splitNumber from "@hey/helpers/splitNumber";
+import type { CollectModuleType } from "@hey/types/hey";
+import { Button, H6, Input } from "@hey/ui";
+import type { FC } from "react";
+import { useState } from "react";
+import { useCollectModuleStore } from "src/store/non-persisted/publication/useCollectModuleStore";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import { isAddress } from "viem";
 
 interface SplitConfigProps {
   isRecipientsDuplicated: () => boolean;
+  setCollectType: (data: CollectModuleType) => void;
 }
 
-const SplitConfig: FC<SplitConfigProps> = ({ isRecipientsDuplicated }) => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const recipients = useCollectModuleStore((state) => state.recipients);
-  const setRecipients = useCollectModuleStore((state) => state.setRecipients);
+const SplitConfig: FC<SplitConfigProps> = ({
+  isRecipientsDuplicated,
+  setCollectType
+}) => {
+  const { currentProfile } = useProfileStore();
+  const { collectModule } = useCollectModuleStore((state) => state);
 
-  const hasRecipients = recipients.length > 0;
+  const currentAddress = currentProfile?.ownedBy.address || "";
+  const recipients = collectModule.recipients || [];
+  const [isToggleOn, setIsToggleOn] = useState(
+    recipients.length > 1 ||
+      (recipients.length === 1 && recipients[0].recipient !== currentAddress)
+  );
   const splitTotal = recipients.reduce((acc, curr) => acc + curr.split, 0);
-
-  const [getProfileByHandle, { loading }] = useProfileLazyQuery();
 
   const splitEvenly = () => {
     const equalSplits = splitNumber(100, recipients.length);
@@ -33,131 +44,147 @@ const SplitConfig: FC<SplitConfigProps> = ({ isRecipientsDuplicated }) => {
         split: equalSplits[i]
       };
     });
-    setRecipients([...splits]);
+    setCollectType({
+      recipients: [...splits]
+    });
   };
 
-  const getIsHandle = (handle: string) => {
-    return handle === LENSPROTOCOL_HANDLE ? true : handle.includes(HANDLE_SUFFIX);
-  };
-
-  const onChangeRecipientOrSplit = (index: number, value: string, type: 'recipient' | 'split') => {
+  const onChangeRecipientOrSplit = (
+    index: number,
+    value: string,
+    type: "recipient" | "split"
+  ) => {
     const getRecipients = (value: string) => {
       return recipients.map((recipient, i) => {
         if (i === index) {
           return {
             ...recipient,
-            [type]: type === 'split' ? parseInt(value) : value
+            [type]: type === "split" ? Number.parseInt(value) : value
           };
         }
         return recipient;
       });
     };
 
-    if (type === 'recipient' && getIsHandle(value)) {
-      getProfileByHandle({
-        variables: { request: { handle: value } },
-        onCompleted: (data) => {
-          if (data.profile) {
-            setRecipients(getRecipients(data.profile.ownedBy));
-          }
-        }
-      });
-    }
+    setCollectType({ recipients: getRecipients(value) });
+  };
 
-    setRecipients(getRecipients(value));
+  const updateRecipient = (index: number, value: string) => {
+    onChangeRecipientOrSplit(index, value, "recipient");
+  };
+
+  const removeRecipient = (index: number) => {
+    const updatedRecipients = recipients.filter((_, i) => i !== index);
+    if (updatedRecipients.length === 0) {
+      setCollectType({
+        recipients: [{ recipient: currentAddress, split: 100 }]
+      });
+      setIsToggleOn(false);
+    } else {
+      setCollectType({ recipients: updatedRecipients });
+    }
+  };
+
+  const toggleSplit = () => {
+    setCollectType({
+      recipients: [{ recipient: currentAddress, split: 100 }]
+    });
+    setIsToggleOn(!isToggleOn);
   };
 
   return (
-    <div className="pt-5">
+    <div className="mt-5">
       <ToggleWithHelper
-        on={recipients.length > 0}
-        setOn={() => {
-          if (recipients.length > 0) {
-            setRecipients([]);
-          } else {
-            setRecipients([{ recipient: currentProfile?.ownedBy, split: 100 }]);
-          }
-        }}
-        heading={
-          <div className="flex items-center space-x-2">
-            <span>
-              <Trans>Split revenue</Trans>
-            </span>
-            <Beta />
-          </div>
-        }
-        description={t`Set multiple recipients for the collect fee`}
-        icon={<UsersIcon className="h-4 w-4" />}
+        description="Set multiple recipients for the collect fee"
+        heading="Split revenue"
+        icon={<UsersIcon className="size-5" />}
+        on={isToggleOn}
+        setOn={toggleSplit}
       />
-      {hasRecipients ? (
-        <div className="space-y-3 pt-4">
+      {isToggleOn ? (
+        <div className="mt-4 ml-8 space-y-3">
           <div className="space-y-2">
             {recipients.map((recipient, index) => (
-              <div key={index} className="flex items-center space-x-2 text-sm">
-                <Input
-                  placeholder="0x3A5bd...5e3 or wagmi.lens"
+              <H6
+                className="flex items-center space-x-2 font-normal"
+                key={index}
+              >
+                <SearchProfiles
+                  error={
+                    recipient.recipient.length > 0 &&
+                    !isAddress(recipient.recipient)
+                  }
+                  hideDropdown={isAddress(recipient.recipient)}
+                  onChange={(event) =>
+                    updateRecipient(index, event.target.value)
+                  }
+                  onProfileSelected={(profile) =>
+                    updateRecipient(index, profile.ownedBy.address)
+                  }
+                  placeholder={`${ADDRESS_PLACEHOLDER} or wagmi`}
                   value={recipient.recipient}
-                  disabled={loading}
-                  error={recipient.recipient.length > 0 && !isValidEthAddress(recipient.recipient)}
-                  onChange={(event) => onChangeRecipientOrSplit(index, event.target.value, 'recipient')}
                 />
                 <div className="w-1/3">
                   <Input
-                    type="number"
-                    placeholder="5"
-                    min="1"
-                    max="100"
-                    value={recipient.split}
                     iconRight="%"
-                    onChange={(event) => onChangeRecipientOrSplit(index, event.target.value, 'split')}
+                    max="100"
+                    min="1"
+                    onChange={(event) =>
+                      onChangeRecipientOrSplit(
+                        index,
+                        event.target.value,
+                        "split"
+                      )
+                    }
+                    placeholder="5"
+                    type="number"
+                    value={recipient.split}
                   />
                 </div>
-                <button
-                  onClick={() => {
-                    setRecipients(recipients.filter((_, i) => i !== index));
-                  }}
-                >
-                  <XCircleIcon className="h-5 w-5 text-red-500" />
+                <button onClick={() => removeRecipient(index)} type="button">
+                  <XCircleIcon className="size-5" />
                 </button>
-              </div>
+              </H6>
             ))}
           </div>
           <div className="flex items-center justify-between">
-            {recipients.length >= 5 ? (
+            {recipients.length >= 4 ? (
               <div />
             ) : (
               <Button
-                size="sm"
-                outline
-                icon={<PlusIcon className="h-3 w-3" />}
+                icon={<PlusIcon className="size-3" />}
                 onClick={() => {
-                  setRecipients([...recipients, { recipient: '', split: 0 }]);
+                  setCollectType({
+                    recipients: [...recipients, { recipient: "", split: 0 }]
+                  });
                 }}
+                outline
+                size="sm"
               >
                 Add recipient
               </Button>
             )}
-
             <Button
-              size="sm"
-              outline
-              icon={<SwitchHorizontalIcon className="h-3 w-3" />}
+              icon={<ArrowsRightLeftIcon className="size-3" />}
               onClick={splitEvenly}
+              outline
+              size="sm"
             >
               Split evenly
             </Button>
           </div>
           {splitTotal > 100 ? (
-            <div className="text-sm font-bold text-red-500">
-              <Trans>
-                Splits cannot exceed 100%. Total: <span>{splitTotal}</span>%
-              </Trans>
-            </div>
+            <H6 className="text-red-500">
+              Splits cannot exceed 100%. Total: <span>{splitTotal}</span>%
+            </H6>
+          ) : null}
+          {splitTotal < 100 ? (
+            <H6 className="text-red-500">
+              Splits cannot be less than 100%. Total: <span>{splitTotal}</span>%
+            </H6>
           ) : null}
           {isRecipientsDuplicated() ? (
-            <div className="text-sm font-bold text-red-500">
-              <Trans>Duplicate recipient address found</Trans>
-            </div>
+            <H6 className="text-red-500">Duplicate recipient address found</H6>
           ) : null}
         </div>
       ) : null}

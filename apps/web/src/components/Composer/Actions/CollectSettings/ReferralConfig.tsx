@@ -1,36 +1,46 @@
-import ToggleWithHelper from '@components/Shared/ToggleWithHelper';
-import { SwitchHorizontalIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { FC } from 'react';
-import { useCollectModuleStore } from 'src/store/collect-module';
-import { Input } from 'ui';
+import ToggleWithHelper from "@components/Shared/ToggleWithHelper";
+import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
+import { CollectOpenActionModuleType } from "@hey/lens";
+import type { CollectModuleType } from "@hey/types/hey";
+import { RangeSlider } from "@hey/ui";
+import type { FC } from "react";
+import { useCollectModuleStore } from "src/store/non-persisted/publication/useCollectModuleStore";
 
-const ReferralConfig: FC = () => {
-  const referralFee = useCollectModuleStore((state) => state.referralFee);
-  const setReferralFee = useCollectModuleStore((state) => state.setReferralFee);
+interface ReferralConfigProps {
+  setCollectType: (data: CollectModuleType) => void;
+}
+
+const ReferralConfig: FC<ReferralConfigProps> = ({ setCollectType }) => {
+  const { collectModule } = useCollectModuleStore((state) => state);
 
   return (
-    <div className="pt-5">
+    <div className="mt-5">
       <ToggleWithHelper
-        on={Boolean(referralFee)}
-        setOn={() => setReferralFee(referralFee ? null : '25')}
-        heading={t`Mirror referral reward`}
-        description={t`Share your fee with people who amplify your content`}
-        icon={<SwitchHorizontalIcon className="h-4 w-4" />}
+        description="Share your fee with people who amplify your content"
+        heading="Mirror referral reward"
+        icon={<ArrowsRightLeftIcon className="size-5" />}
+        on={Boolean(collectModule.referralFee)}
+        setOn={() =>
+          setCollectType({
+            referralFee: collectModule.referralFee ? 0 : 25,
+            type: collectModule.recipients?.length
+              ? CollectOpenActionModuleType.MultirecipientFeeCollectOpenActionModule
+              : CollectOpenActionModuleType.SimpleCollectOpenActionModule
+          })
+        }
       />
-      {referralFee ? (
-        <div className="flex space-x-2 pt-4 text-sm">
-          <Input
-            label={t`Referral fee`}
-            type="number"
-            placeholder="5"
-            iconRight="%"
-            min="0"
-            max="100"
-            value={parseFloat(referralFee ?? '0')}
-            onChange={(event) => {
-              setReferralFee(event.target.value ? event.target.value : '0');
-            }}
+      {collectModule.referralFee ? (
+        <div className="mt-4 ml-8 space-y-2 text-sm">
+          <div>Referral fee</div>
+          <RangeSlider
+            showValueInThumb
+            min={1}
+            max={100}
+            displayValue={`${collectModule.referralFee.toString()}%`}
+            defaultValue={[collectModule.referralFee]}
+            onValueChange={(value) =>
+              setCollectType({ referralFee: Number(value[0]) })
+            }
           />
         </div>
       ) : null}

@@ -1,76 +1,100 @@
-import Sidebar from '@components/Shared/Sidebar';
-import UserProfile from '@components/Shared/UserProfile';
+import Sidebar from "@components/Shared/Sidebar";
+import SingleProfile from "@components/Shared/SingleProfile";
 import {
-  AdjustmentsIcon,
+  AdjustmentsVerticalIcon,
+  AtSymbolIcon,
   BookmarkIcon,
-  ChipIcon,
-  ExclamationIcon,
+  CircleStackIcon,
+  CpuChipIcon,
+  ExclamationTriangleIcon,
   FingerPrintIcon,
+  GlobeAltIcon,
+  NoSymbolIcon,
+  QueueListIcon,
   ShareIcon,
-  SparklesIcon,
   UserIcon
-} from '@heroicons/react/outline';
-import { t, Trans } from '@lingui/macro';
-import type { Profile } from 'lens';
-import type { FC } from 'react';
-import { useAppStore } from 'src/store/app';
+} from "@heroicons/react/24/outline";
+import type { Profile } from "@hey/lens";
+import type { FC } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
 
 const SettingsSidebar: FC = () => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
+  const { currentProfile } = useProfileStore();
+
+  const sidebarItems = [
+    {
+      icon: <UserIcon className="size-4" />,
+      title: "Profile",
+      url: "/settings"
+    },
+    {
+      icon: <CpuChipIcon className="size-4" />,
+      title: "Account",
+      url: "/settings/account"
+    },
+    {
+      icon: <AtSymbolIcon className="size-4" />,
+      title: "Handles",
+      url: "/settings/handles"
+    },
+    {
+      icon: <AdjustmentsVerticalIcon className="size-4" />,
+      title: "Preferences",
+      url: "/settings/preferences"
+    },
+    {
+      icon: <BookmarkIcon className="size-4" />,
+      title: "Interests",
+      url: "/settings/interests"
+    },
+    {
+      icon: <FingerPrintIcon className="size-4" />,
+      title: "Manager",
+      url: "/settings/manager"
+    },
+    {
+      icon: <ShareIcon className="size-4" />,
+      title: "Allowance",
+      url: "/settings/allowance"
+    },
+    {
+      icon: <GlobeAltIcon className="size-4" />,
+      title: "Sessions",
+      url: "/settings/sessions"
+    },
+    {
+      icon: <QueueListIcon className="size-4" />,
+      title: "Action History",
+      url: "/settings/actions"
+    },
+    {
+      icon: <NoSymbolIcon className="size-4" />,
+      title: "Blocked Profiles",
+      url: "/settings/blocked"
+    },
+    {
+      icon: <CircleStackIcon className="size-4" />,
+      title: "Export",
+      url: "/settings/export"
+    },
+    {
+      icon: <ExclamationTriangleIcon className="size-4 text-red-500" />,
+      title: <div className="text-red-500">Danger zone</div>,
+      url: "/settings/danger"
+    }
+  ];
 
   return (
-    <div className="mb-4 space-y-1.5 px-3 sm:px-0">
+    <div className="mb-4 px-3 sm:px-0">
       <div className="pb-3">
-        <UserProfile profile={currentProfile as Profile} showUserPreview={false} />
+        <SingleProfile
+          hideFollowButton
+          hideUnfollowButton
+          profile={currentProfile as Profile}
+          showUserPreview={false}
+        />
       </div>
-      <Sidebar
-        items={[
-          {
-            title: t`Profile`,
-            icon: <UserIcon className="h-4 w-4" />,
-            url: '/settings'
-          },
-          {
-            title: t`Account`,
-            icon: <ChipIcon className="h-4 w-4" />,
-            url: '/settings/account'
-          },
-          {
-            title: t`Preferences`,
-            icon: <AdjustmentsIcon className="h-4 w-4" />,
-            url: '/settings/preferences'
-          },
-          {
-            title: t`Interests`,
-            icon: <BookmarkIcon className="h-4 w-4" />,
-            url: '/settings/interests'
-          },
-          {
-            title: t`Dispatcher`,
-            icon: <FingerPrintIcon className="h-4 w-4" />,
-            url: '/settings/dispatcher'
-          },
-          {
-            title: t`Allowance`,
-            icon: <ShareIcon className="h-4 w-4" />,
-            url: '/settings/allowance'
-          },
-          {
-            title: t`Cleanup`,
-            icon: <SparklesIcon className="h-4 w-4" />,
-            url: '/settings/cleanup'
-          },
-          {
-            title: (
-              <div className="text-red-500">
-                <Trans>Danger Zone</Trans>
-              </div>
-            ),
-            icon: <ExclamationIcon className="h-4 w-4 text-red-500" />,
-            url: '/settings/delete'
-          }
-        ]}
-      />
+      <Sidebar items={sidebarItems} />
     </div>
   );
 };

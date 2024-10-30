@@ -1,42 +1,53 @@
-import MetaTags from '@components/Common/MetaTags';
-import { Mixpanel } from '@lib/mixpanel';
-import { t } from '@lingui/macro';
-import { APP_NAME } from 'data/constants';
-import { useRouter } from 'next/router';
-import type { FC } from 'react';
-import { useEffect, useState } from 'react';
-import Custom404 from 'src/pages/404';
-import { useAppStore } from 'src/store/app';
-import { PAGEVIEW } from 'src/tracking';
+import MetaTags from "@components/Common/MetaTags";
+import NotLoggedIn from "@components/Shared/NotLoggedIn";
+import { Leafwatch } from "@helpers/leafwatch";
+import { APP_NAME } from "@hey/data/constants";
+import type { NotificationTabType } from "@hey/data/enums";
+import { NotificationFeedType } from "@hey/data/enums";
+import { PAGEVIEW } from "@hey/data/tracking";
+import type { NextPage } from "next";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import FeedType from "./FeedType";
+import List from "./List";
+import Settings from "./Settings";
 
-import FeedType from './FeedType';
-import List from './List';
-
-const Notification: FC = () => {
+const Notification: NextPage = () => {
   const {
     query: { type }
   } = useRouter();
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const [feedType, setFeedType] = useState(
-    type && ['all', 'mentions', 'comments', 'likes', 'collects'].includes(type as string)
-      ? type.toString().toUpperCase()
-      : 'ALL'
-  );
+  const { currentProfile } = useProfileStore();
 
   useEffect(() => {
-    Mixpanel.track(PAGEVIEW, { page: 'notifications' });
+    Leafwatch.track(PAGEVIEW, { page: "notifications" });
   }, []);
 
+  const lowerCaseNotificationFeedType = [
+    NotificationFeedType.All.toLowerCase(),
+    NotificationFeedType.Mentions.toLowerCase(),
+    NotificationFeedType.Comments.toLowerCase(),
+    NotificationFeedType.Likes.toLowerCase(),
+    NotificationFeedType.Collects.toLowerCase()
+  ];
+
+  const feedType = type
+    ? lowerCaseNotificationFeedType.includes(type as string)
+      ? type.toString().toUpperCase()
+      : NotificationFeedType.All
+    : NotificationFeedType.All;
+
   if (!currentProfile) {
-    return <Custom404 />;
+    return <NotLoggedIn />;
   }
 
   return (
-    <div className="flex flex-grow justify-center px-0 py-8 sm:px-6 lg:px-8">
-      <MetaTags title={t`Notifications • ${APP_NAME}`} />
+    <div className="flex grow justify-center px-0 py-8 sm:px-6 lg:px-8">
+      <MetaTags title={`Notifications • ${APP_NAME}`} />
       <div className="w-full max-w-4xl space-y-3">
-        <div className="flex gap-3 pb-2">
-          <FeedType setFeedType={setFeedType} feedType={feedType} />
+        <div className="flex flex-wrap justify-between gap-3 pb-2">
+          <FeedType feedType={feedType as NotificationTabType} />
+          <Settings />
         </div>
         <List feedType={feedType} />
       </div>

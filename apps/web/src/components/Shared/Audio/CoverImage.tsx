@@ -1,78 +1,96 @@
-import { PhotographIcon } from '@heroicons/react/outline';
-import uploadToIPFS from '@lib/uploadToIPFS';
-import clsx from 'clsx';
-import { ATTACHMENT } from 'data/constants';
-import Errors from 'data/errors';
-import imageProxy from 'lib/imageProxy';
-import sanitizeDStorageUrl from 'lib/sanitizeDStorageUrl';
-import type { ChangeEvent, FC, Ref } from 'react';
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { Image, Spinner } from 'ui';
+import errorToast from "@helpers/errorToast";
+import { uploadFileToIPFS } from "@helpers/uploadToIPFS";
+import { PhotoIcon } from "@heroicons/react/24/outline";
+import { ATTACHMENT } from "@hey/data/constants";
+import imageKit from "@hey/helpers/imageKit";
+import sanitizeDStorageUrl from "@hey/helpers/sanitizeDStorageUrl";
+import { Image, Spinner } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import type { ChangeEvent, FC, Ref } from "react";
+import { useState } from "react";
 
 interface CoverImageProps {
-  isNew: boolean;
   cover: string;
-  setCover: (url: string, mimeType: string) => void;
-  imageRef: Ref<HTMLImageElement>;
   expandCover: (url: string) => void;
+  imageRef: Ref<HTMLImageElement>;
+  isNew: boolean;
+  setCover: (previewUri: string, url: string, mimeType: string) => void;
 }
 
-const CoverImage: FC<CoverImageProps> = ({ isNew = false, cover, setCover, imageRef, expandCover }) => {
-  const [loading, setLoading] = useState(false);
+const CoverImage: FC<CoverImageProps> = ({
+  cover,
+  expandCover,
+  imageRef,
+  isNew = false,
+  setCover
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
 
   const onError = (error: any) => {
-    toast.error(error?.data?.message ?? error?.message ?? Errors.SomethingWentWrong);
-    setLoading(false);
+    setIsLoading(false);
+    errorToast(error);
   };
 
-  const onChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.length) {
+  const onChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files?.length) {
       try {
-        setLoading(true);
-        const attachment = await uploadToIPFS(e.target.files);
-        setCover(attachment[0].item, attachment[0].type);
+        setIsLoading(true);
+        const file = event.target.files[0];
+        const attachment = await uploadFileToIPFS(file);
+        setCover(
+          URL.createObjectURL(file),
+          attachment.uri,
+          file.type || "image/jpeg"
+        );
       } catch (error) {
         onError(error);
       }
     }
   };
 
+  const handleExpandCover = () => {
+    expandCover(cover ? sanitizeDStorageUrl(cover) : cover);
+  };
+
   return (
     <div className="group relative flex-none overflow-hidden">
       <button
-        type="button"
         className="flex focus:outline-none"
-        onClick={() => expandCover(cover ? sanitizeDStorageUrl(cover) : cover)}
+        onClick={handleExpandCover}
+        type="button"
       >
         <Image
+          alt={`attachment-audio-cover-${cover}`}
+          className="size-24 rounded-xl object-cover md:size-40 md:rounded-none"
+          draggable={false}
           onError={({ currentTarget }) => {
             currentTarget.src = cover ? sanitizeDStorageUrl(cover) : cover;
           }}
-          src={cover ? imageProxy(sanitizeDStorageUrl(cover), ATTACHMENT) : cover}
-          className="h-24 w-24 rounded-xl object-cover md:h-40 md:w-40 md:rounded-none"
-          draggable={false}
-          alt={`attachment-audio-cover-${cover}`}
-          data-testid={`attachment-audio-cover-${cover}`}
           ref={imageRef}
+          src={cover ? imageKit(sanitizeDStorageUrl(cover), ATTACHMENT) : cover}
         />
       </button>
       {isNew && (
         <label
-          className={clsx(
-            { visible: loading && !cover, invisible: cover },
-            'absolute top-0 grid h-24 w-24 cursor-pointer place-items-center bg-gray-100 backdrop-blur-lg group-hover:visible dark:bg-gray-900 md:h-40 md:w-40'
+          className={cn(
+            { invisible: cover, visible: isLoading && !cover },
+            "absolute top-0 grid size-24 cursor-pointer place-items-center bg-gray-100 backdrop-blur-lg group-hover:visible md:size-40 dark:bg-gray-900"
           )}
         >
-          {loading && !cover ? (
+          {isLoading && !cover ? (
             <Spinner size="sm" />
           ) : (
-            <div className="flex flex-col items-center text-sm text-black opacity-60 dark:text-white">
-              <PhotographIcon className="h-5 w-5" />
+            <div className="flex flex-col items-center text-black text-sm opacity-60 dark:text-white">
+              <PhotoIcon className="size-5" />
               <span>Add cover</span>
             </div>
           )}
-          <input type="file" accept=".png, .jpg, .jpeg, .svg" className="hidden w-full" onChange={onChange} />
+          <input
+            accept=".png, .jpg, .jpeg, .svg"
+            className="hidden w-full"
+            onChange={onChange}
+            type="file"
+          />
         </label>
       )}
     </div>

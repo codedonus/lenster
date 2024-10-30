@@ -1,14 +1,13 @@
-import type { FC } from 'react';
-import { Card } from 'ui';
-
-import PublicationShimmer from './PublicationShimmer';
+import { Card } from "@hey/ui";
+import type { FC } from "react";
+import PublicationShimmer from "./PublicationShimmer";
 
 const PublicationsShimmer: FC = () => {
   return (
     <Card className="divide-y-[1px] dark:divide-gray-700">
-      <PublicationShimmer />
-      <PublicationShimmer />
-      <PublicationShimmer />
+      {Array.from({ length: 3 }).map((_, index) => (
+        <PublicationShimmer key={index} />
+      ))}
     </Card>
   );
 };

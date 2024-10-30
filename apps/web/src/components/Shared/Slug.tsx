@@ -1,17 +1,23 @@
-import clsx from 'clsx';
-import type { FC } from 'react';
+import cn from "@hey/ui/cn";
+import type { FC } from "react";
 
 interface SlugProps {
-  slug: string;
-  prefix?: string;
   className?: string;
+  prefix?: string;
+  slug: string;
+  useBrandColor?: boolean;
 }
 
-const Slug: FC<SlugProps> = ({ slug, prefix, className = '' }) => {
+const Slug: FC<SlugProps> = ({
+  className = "",
+  prefix = "",
+  slug,
+  useBrandColor = false
+}) => {
   return (
     <span
-      className={clsx(
-        'from-brand-600 dark:from-brand-400 bg-gradient-to-r to-pink-600 bg-clip-text text-transparent dark:to-pink-400',
+      className={cn(
+        useBrandColor ? "text-brand-500" : "ld-text-gray-500",
         className
       )}
     >

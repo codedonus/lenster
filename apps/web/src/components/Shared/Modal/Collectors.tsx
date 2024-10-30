@@ -1,89 +1,93 @@
-import UserProfile from '@components/Shared/UserProfile';
-import WalletProfile from '@components/Shared/WalletProfile';
-import { CollectionIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { Profile, Wallet, WhoCollectedPublicationRequest } from 'lens';
-import { useCollectorsQuery } from 'lens';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useInView } from 'react-cool-inview';
-import { FollowSource } from 'src/tracking';
-import { EmptyState, ErrorMessage } from 'ui';
-
-import Loader from '../Loader';
+import ProfileListShimmer from "@components/Shared/Shimmer/ProfileListShimmer";
+import SingleProfile from "@components/Shared/SingleProfile";
+import { ShoppingBagIcon } from "@heroicons/react/24/outline";
+import { ProfileLinkSource } from "@hey/data/tracking";
+import type { Profile, WhoActedOnPublicationRequest } from "@hey/lens";
+import {
+  LimitType,
+  OpenActionCategoryType,
+  useWhoActedOnPublicationQuery
+} from "@hey/lens";
+import { EmptyState, ErrorMessage } from "@hey/ui";
+import type { FC } from "react";
+import { Virtuoso } from "react-virtuoso";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
 
 interface CollectorsProps {
   publicationId: string;
 }
 
 const Collectors: FC<CollectorsProps> = ({ publicationId }) => {
-  const [hasMore, setHasMore] = useState(true);
+  const { currentProfile } = useProfileStore();
 
-  // Variables
-  const request: WhoCollectedPublicationRequest = { publicationId: publicationId, limit: 10 };
+  const request: WhoActedOnPublicationRequest = {
+    limit: LimitType.TwentyFive,
+    on: publicationId,
+    where: { anyOf: [{ category: OpenActionCategoryType.Collect }] }
+  };
 
-  const { data, loading, error, fetchMore } = useCollectorsQuery({
-    variables: { request },
-    skip: !publicationId
+  const { data, error, fetchMore, loading } = useWhoActedOnPublicationQuery({
+    skip: !publicationId,
+    variables: { request }
   });
 
-  const profiles = data?.whoCollectedPublication?.items;
-  const pageInfo = data?.whoCollectedPublication?.pageInfo;
+  const profiles = data?.whoActedOnPublication?.items;
+  const pageInfo = data?.whoActedOnPublication?.pageInfo;
+  const hasMore = pageInfo?.next;
 
-  const { observe } = useInView({
-    onChange: async ({ inView }) => {
-      if (!inView || !hasMore) {
-        return;
-      }
-
+  const onEndReached = async () => {
+    if (hasMore) {
       await fetchMore({
         variables: { request: { ...request, cursor: pageInfo?.next } }
-      }).then(({ data }) => {
-        setHasMore(data?.whoCollectedPublication?.items?.length > 0);
       });
     }
-  });
+  };
 
   if (loading) {
-    return <Loader message={t`Loading collectors`} />;
+    return <ProfileListShimmer />;
   }
 
   if (profiles?.length === 0) {
     return (
       <div className="p-5">
         <EmptyState
-          message={t`No collectors.`}
-          icon={<CollectionIcon className="text-brand h-8 w-8" />}
+          icon={<ShoppingBagIcon className="size-8" />}
+          message="No collectors."
           hideCard
         />
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <ErrorMessage
+        className="m-5"
+        error={error}
+        title="Failed to load collectors"
+      />
+    );
+  }
+
   return (
-    <div className="max-h-[80vh] overflow-y-auto" data-testid="collectors-modal">
-      <ErrorMessage className="m-5" title={t`Failed to load collectors`} error={error} />
-      <div className="divide-y dark:divide-gray-700">
-        {profiles?.map((wallet, index) => (
-          <div className="p-5" key={wallet?.address}>
-            {wallet?.defaultProfile ? (
-              <UserProfile
-                profile={wallet?.defaultProfile as Profile}
-                isFollowing={wallet?.defaultProfile?.isFollowedByMe}
-                followPosition={index + 1}
-                followSource={FollowSource.COLLECTORS_MODAL}
-                showBio
-                showFollow
-                showUserPreview={false}
-              />
-            ) : (
-              <WalletProfile wallet={wallet as Wallet} />
-            )}
-          </div>
-        ))}
-      </div>
-      {hasMore && <span ref={observe} />}
-    </div>
+    <Virtuoso
+      className="virtual-profile-list"
+      computeItemKey={(index, profile) => `${profile.id}-${index}`}
+      data={profiles}
+      endReached={onEndReached}
+      itemContent={(_, profile) => (
+        <div className="p-5">
+          <SingleProfile
+            hideFollowButton={currentProfile?.id === profile.id}
+            hideUnfollowButton={currentProfile?.id === profile.id}
+            profile={profile as Profile}
+            showBio
+            showUserPreview={false}
+            source={ProfileLinkSource.Collects}
+          />
+        </div>
+      )}
+    />
   );
 };
 

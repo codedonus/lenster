@@ -1,0 +1,11 @@
+fragment PublicationOperationFields on PublicationOperations {
+  isNotInterested
+  hasBookmarked
+  hasActed {
+    value
+  }
+  hasReacted(request: { type: UPVOTE })
+  canMirror
+  hasMirrored
+  hasQuoted
+}

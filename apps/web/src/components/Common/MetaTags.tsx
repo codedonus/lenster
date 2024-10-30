@@ -1,45 +1,73 @@
-import { APP_NAME, DEFAULT_OG, DESCRIPTION } from 'data/constants';
-import Head from 'next/head';
-import type { FC } from 'react';
+import { APP_NAME, DEFAULT_OG, DESCRIPTION } from "@hey/data/constants";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import type { FC } from "react";
 
 interface MetaTagsProps {
-  title?: string;
+  creator?: string;
   description?: string;
+  title?: string;
 }
 
-const MetaTags: FC<MetaTagsProps> = ({ title = APP_NAME, description = DESCRIPTION }) => {
+const MetaTags: FC<MetaTagsProps> = ({
+  creator,
+  description = DESCRIPTION,
+  title = APP_NAME
+}) => {
+  const { asPath } = useRouter();
+  const url = `https://hey.xyz${asPath}`;
+
   return (
     <Head>
       <title>{title}</title>
-      <meta name="description" content={description} />
+      <meta content={description} name="description" />
       <meta
-        name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover"
+        name="viewport"
       />
+      <meta
+        content="hey,hey.xyz,social media profile,social media,lenster,profile,lens,lens protocol,decentralized,web3,Yoginth,@yoginth"
+        name="keywords"
+      />
+      <link href={url} rel="canonical" />
 
-      <meta property="og:url" content="https://lenster.xyz" />
-      <meta property="og:site_name" content={APP_NAME} />
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:image" content={DEFAULT_OG} />
-      <meta property="og:image:width" content="400" />
-      <meta property="og:image:height" content="400" />
+      <meta content={url} property="og:url" />
+      <meta content={APP_NAME} property="og:site_name" />
+      <meta content={title} property="og:title" />
+      <meta content={description} property="og:description" />
+      <meta content={DEFAULT_OG} property="og:image" />
 
-      <meta property="twitter:card" content="summary" />
-      <meta property="twitter:site" content={APP_NAME} />
-      <meta property="twitter:title" content={title} />
-      <meta property="twitter:description" content={description} />
-      <meta property="twitter:image:src" content={DEFAULT_OG} />
-      <meta property="twitter:image:width" content="400" />
-      <meta property="twitter:image:height" content="400" />
-      <meta property="twitter:creator" content="lensterxyz" />
+      <meta content="summary_large_image" property="twitter:card" />
+      <meta content={APP_NAME} property="twitter:site" />
+      <meta content={title} property="twitter:title" />
+      <meta content={description} property="twitter:description" />
+      <meta content={DEFAULT_OG} property="twitter:image" />
+      <meta content="400" property="twitter:image:width" />
+      <meta content="400" property="twitter:image:height" />
+      <meta content="heydotxyz" property="twitter:creator" />
+
+      {creator && (
+        <>
+          <meta content={creator} property="creator" />
+          <meta content={creator} property="publisher" />
+        </>
+      )}
 
       <link
-        rel="search"
-        type="application/opensearchdescription+xml"
         href="/opensearch.xml"
+        rel="search"
         title={APP_NAME}
+        type="application/opensearchdescription+xml"
       />
+
+      {/* Prefetch and Preconnect */}
+      <link href="https://hey-assets.b-cdn.net" rel="preconnect" />
+      <link href="https://hey-assets.b-cdn.net" rel="dns-prefetch" />
+
+      {/* Icons */}
+      <link href="/ati.png" rel="apple-touch-icon" sizes="180x180" />
+      <link href="/32x32.png" rel="icon" sizes="32x32" type="image/png" />
+      <link href="/16x16.png" rel="icon" sizes="16x16" type="image/png" />
     </Head>
   );
 };

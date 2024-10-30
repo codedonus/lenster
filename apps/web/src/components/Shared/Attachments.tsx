@@ -1,165 +1,120 @@
-import { ExternalLinkIcon, XIcon } from '@heroicons/react/outline';
-import { Mixpanel } from '@lib/mixpanel';
-import { Trans } from '@lingui/macro';
-import clsx from 'clsx';
-import { ALLOWED_AUDIO_TYPES, ALLOWED_VIDEO_TYPES, ATTACHMENT } from 'data/constants';
-import type { MediaSet, Publication } from 'lens';
-import imageProxy from 'lib/imageProxy';
-import sanitizeDStorageUrl from 'lib/sanitizeDStorageUrl';
-import { stopEventPropagation } from 'lib/stopEventPropagation';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { usePublicationStore } from 'src/store/publication';
-import { PUBLICATION } from 'src/tracking';
-import type { NewLensterAttachment } from 'src/types';
-import { Button, Image, LightBox } from 'ui';
+import { Leafwatch } from "@helpers/leafwatch";
+import { ATTACHMENT } from "@hey/data/constants";
+import { PUBLICATION } from "@hey/data/tracking";
+import imageKit from "@hey/helpers/imageKit";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { MetadataAsset } from "@hey/types/misc";
+import { Image, LightBox } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import { getSrc } from "@livepeer/react/external";
+import type { FC } from "react";
+import { memo, useState } from "react";
+import Audio from "./Audio";
+import Video from "./Video";
 
-import Audio from './Audio';
-import Video from './Video';
-
-const getClass = (attachments: number, isNew = false) => {
-  if (attachments === 1) {
-    return {
-      aspect: isNew ? 'aspect-w-16 aspect-h-10' : '',
-      row: 'grid-cols-1 grid-rows-1'
-    };
-  } else if (attachments === 2) {
-    return {
-      aspect: 'aspect-w-16 aspect-h-12',
-      row: 'grid-cols-2 grid-rows-1'
-    };
-  } else if (attachments > 2) {
-    return {
-      aspect: 'aspect-w-16 aspect-h-12',
-      row: 'grid-cols-2 grid-rows-2'
-    };
-  }
+const getClass = (attachments: number) => {
+  const aspect = "aspect-w-16 aspect-h-12";
+  if (attachments === 1) return { aspect: "", row: "grid-cols-1 grid-rows-1" };
+  if (attachments === 2) return { aspect, row: "grid-cols-2 grid-rows-1" };
+  if (attachments <= 4) return { aspect, row: "grid-cols-2 grid-rows-2" };
+  if (attachments <= 6) return { aspect, row: "grid-cols-3 grid-rows-2" };
+  if (attachments <= 8) return { aspect, row: "grid-cols-4 grid-rows-2" };
+  return { aspect, row: "grid-cols-5 grid-rows-2" };
 };
 
-interface AttachmentsProps {
-  attachments: any;
-  isNew?: boolean;
-  hideDelete?: boolean;
-  publication?: Publication;
-  txn?: any;
+interface MetadataAttachment {
+  type: "Audio" | "Image" | "Video";
+  uri: string;
 }
 
-const Attachments: FC<AttachmentsProps> = ({
-  attachments = [],
-  isNew = false,
-  hideDelete = false,
-  publication,
-  txn
-}) => {
-  const setAttachments = usePublicationStore((state) => state.setAttachments);
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+interface AttachmentsProps {
+  asset?: MetadataAsset;
+  attachments: MetadataAttachment[];
+}
 
-  const removeAttachment = (attachment: any) => {
-    const arr = attachments;
-    setAttachments(
-      arr.filter(function (ele: any) {
-        return ele != attachment;
-      })
-    );
+const Attachments: FC<AttachmentsProps> = ({ asset, attachments }) => {
+  const [expandedImage, setExpandedImage] = useState<null | string>(null);
+  const processedAttachments = attachments.slice(0, 10);
+
+  const assetType = asset?.type;
+  const hasImageAttachment =
+    processedAttachments.some((attachment) => attachment.type === "Image") ||
+    assetType === "Image";
+
+  const determineDisplay = () => {
+    if (assetType === "Video") return "displayVideoAsset";
+    if (assetType === "Audio") return "displayAudioAsset";
+    if (hasImageAttachment) {
+      const imageAttachments = processedAttachments
+        .filter((attachment) => attachment.type === "Image")
+        .map((attachment) => attachment.uri);
+      if (asset?.uri) imageAttachments.unshift(asset.uri);
+      return [...new Set(imageAttachments)];
+    }
+    return null;
   };
 
-  const getCoverUrl = () => {
-    return publication?.metadata?.cover?.original.url || publication?.metadata?.image;
-  };
+  const displayDecision = determineDisplay();
 
-  const slicedAttachments = isNew
-    ? attachments?.slice(0, 4)
-    : attachments?.some((e: any) => ALLOWED_VIDEO_TYPES.includes(e?.original?.mimeType))
-    ? attachments?.slice(0, 1)
-    : attachments?.slice(0, 4);
+  const ImageComponent = ({ uri }: { uri: string }) => (
+    <Image
+      alt={imageKit(uri, ATTACHMENT)}
+      className="cursor-pointer rounded-lg border bg-gray-100 object-cover dark:border-gray-700 dark:bg-gray-800"
+      height={1000}
+      loading="lazy"
+      onClick={() => {
+        setExpandedImage(uri);
+        Leafwatch.track(PUBLICATION.ATTACHMENT.IMAGE.OPEN);
+      }}
+      onError={({ currentTarget }) => {
+        currentTarget.src = uri;
+      }}
+      src={imageKit(uri, ATTACHMENT)}
+      width={1000}
+    />
+  );
 
-  return slicedAttachments?.length !== 0 ? (
-    <>
-      <div className={clsx(getClass(slicedAttachments?.length)?.row, 'grid gap-2 pt-3')}>
-        {slicedAttachments?.map((attachment: NewLensterAttachment & MediaSet, index: number) => {
-          const type = isNew ? attachment.type : attachment.original?.mimeType;
-          const url = isNew
-            ? attachment.previewItem || sanitizeDStorageUrl(attachment.item!)
-            : sanitizeDStorageUrl(attachment.original?.url) || sanitizeDStorageUrl(attachment.item!);
-
-          return (
+  return (
+    <div className="mt-3">
+      {Array.isArray(displayDecision) && (
+        <div
+          className={cn("grid gap-2", getClass(displayDecision.length)?.row)}
+        >
+          {displayDecision.map((attachment, index) => (
             <div
-              className={clsx(
-                ALLOWED_VIDEO_TYPES.includes(type) || ALLOWED_AUDIO_TYPES.includes(type)
-                  ? ''
-                  : `${getClass(slicedAttachments?.length, isNew)?.aspect} ${
-                      slicedAttachments?.length === 3 && index === 0 ? 'row-span-2' : ''
-                    }`,
-                {
-                  'w-full': ALLOWED_AUDIO_TYPES.includes(type),
-                  'w-2/3':
-                    ALLOWED_VIDEO_TYPES.includes(type) ||
-                    (slicedAttachments.length === 1 && !ALLOWED_AUDIO_TYPES.includes(type))
-                },
-                'relative'
+              className={cn(
+                getClass(displayDecision.length)?.aspect,
+                { "row-span-2": displayDecision.length === 3 && index === 0 },
+                { "w-2/3": displayDecision.length === 1 }
               )}
-              key={index + url}
+              key={attachment}
               onClick={stopEventPropagation}
             >
-              {type === 'image/svg+xml' ? (
-                <Button
-                  className="text-sm"
-                  variant="primary"
-                  icon={<ExternalLinkIcon className="h-4 w-4" />}
-                  onClick={() => window.open(url, '_blank')}
-                >
-                  <span>
-                    <Trans>Open Image in new tab</Trans>
-                  </span>
-                </Button>
-              ) : ALLOWED_VIDEO_TYPES.includes(type) ? (
-                <Video src={url} poster={getCoverUrl()} />
-              ) : ALLOWED_AUDIO_TYPES.includes(type) ? (
-                <Audio
-                  src={url}
-                  isNew={isNew}
-                  publication={publication}
-                  txn={txn}
-                  expandCover={(url) => setExpandedImage(url)}
-                />
-              ) : (
-                <Image
-                  className="cursor-pointer rounded-lg border bg-gray-100 object-cover dark:border-gray-700 dark:bg-gray-800"
-                  loading="lazy"
-                  height={1000}
-                  width={1000}
-                  onError={({ currentTarget }) => {
-                    currentTarget.src = url;
-                  }}
-                  onClick={() => {
-                    setExpandedImage(url);
-                    Mixpanel.track(PUBLICATION.ATTACHMENT.IMAGE.OPEN);
-                  }}
-                  src={isNew ? url : imageProxy(url, ATTACHMENT)}
-                  alt={isNew ? url : imageProxy(url, ATTACHMENT)}
-                  data-testid={`attachment-image-${url}`}
-                />
-              )}
-              {isNew && !hideDelete && (
-                <div
-                  className={clsx(ALLOWED_AUDIO_TYPES.includes(type) ? 'absolute -top-2.5 -left-2' : 'm-3')}
-                >
-                  <button
-                    type="button"
-                    className="rounded-full bg-gray-900 p-1.5 opacity-75"
-                    onClick={() => removeAttachment(attachment)}
-                  >
-                    <XIcon className="h-4 w-4 text-white" />
-                  </button>
-                </div>
-              )}
+              <ImageComponent uri={attachment} />
             </div>
-          );
-        })}
-      </div>
-      <LightBox show={Boolean(expandedImage)} url={expandedImage} onClose={() => setExpandedImage(null)} />
-    </>
-  ) : null;
+          ))}
+        </div>
+      )}
+      {displayDecision === "displayVideoAsset" && (
+        <Video
+          src={
+            getSrc(asset?.uri) || [{ src: asset?.uri, type: "video" } as any]
+          }
+          poster={asset?.cover as string}
+        />
+      )}
+      {displayDecision === "displayAudioAsset" && (
+        <Audio
+          artist={asset?.artist}
+          expandCover={setExpandedImage}
+          poster={asset?.cover as string}
+          src={asset?.uri as string}
+          title={asset?.title}
+        />
+      )}
+      <LightBox onClose={() => setExpandedImage(null)} url={expandedImage} />
+    </div>
+  );
 };
 
-export default Attachments;
+export default memo(Attachments);

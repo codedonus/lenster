@@ -1,50 +1,53 @@
-import Loader from '@components/Shared/Loader';
-import UserProfile from '@components/Shared/UserProfile';
-import { UsersIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { Profile } from 'lens';
-import { useRecommendedProfilesQuery } from 'lens';
-import type { FC } from 'react';
-import { FollowSource } from 'src/tracking';
-import { EmptyState, ErrorMessage } from 'ui';
+import DismissRecommendedProfile from "@components/Shared/DismissRecommendedProfile";
+import SingleProfile from "@components/Shared/SingleProfile";
+import { UsersIcon } from "@heroicons/react/24/outline";
+import { ProfileLinkSource } from "@hey/data/tracking";
+import type { Profile } from "@hey/lens";
+import { EmptyState } from "@hey/ui";
+import type { FC } from "react";
+import { Virtuoso } from "react-virtuoso";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
 
-const Suggested: FC = () => {
-  const { data, loading, error } = useRecommendedProfilesQuery();
+interface SuggestedProps {
+  profiles: Profile[];
+}
 
-  if (loading) {
-    return <Loader message={t`Loading suggested`} />;
-  }
+const Suggested: FC<SuggestedProps> = ({ profiles }) => {
+  const { currentProfile } = useProfileStore();
 
-  if (data?.recommendedProfiles?.length === 0) {
+  if (profiles.length === 0) {
     return (
       <EmptyState
-        message={t`Nothing to suggest`}
-        icon={<UsersIcon className="text-brand h-8 w-8" />}
         hideCard
+        icon={<UsersIcon className="size-8" />}
+        message="Nothing to suggest"
       />
     );
   }
 
   return (
     <div className="max-h-[80vh] overflow-y-auto">
-      <ErrorMessage title={t`Failed to load recommendations`} error={error} />
-      <div className="space-y-3">
-        <div className="divide-y dark:divide-gray-700">
-          {data?.recommendedProfiles?.map((profile, index) => (
-            <div className="p-5" key={profile?.id}>
-              <UserProfile
+      <Virtuoso
+        className="virtual-profile-list"
+        computeItemKey={(index, profile) => `${profile.id}-${index}`}
+        // remove the first 5 profiles from the list because they are already shown in the sidebar
+        data={profiles.slice(5)}
+        itemContent={(_, profile) => (
+          <div className="flex items-center space-x-3 p-5">
+            <div className="w-full">
+              <SingleProfile
+                hideFollowButton={currentProfile?.id === profile.id}
+                hideUnfollowButton={currentProfile?.id === profile.id}
                 profile={profile as Profile}
-                isFollowing={profile?.isFollowedByMe}
-                followPosition={index + 1}
-                followSource={FollowSource.WHO_TO_FOLLOW_MODAL}
                 showBio
-                showFollow
                 showUserPreview={false}
+                source={ProfileLinkSource.WhoToFollow}
               />
             </div>
-          ))}
-        </div>
-      </div>
+            <DismissRecommendedProfile profile={profile as Profile} />
+          </div>
+        )}
+      />
     </div>
   );
 };

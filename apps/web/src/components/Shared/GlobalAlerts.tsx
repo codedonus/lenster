@@ -1,29 +1,36 @@
-import ModAction from '@components/Publication/Actions/ModAction';
-import { t } from '@lingui/macro';
-import type { FC } from 'react';
-import { useGlobalAlertStateStore } from 'src/store/alerts';
-import { Alert } from 'ui/Alert';
-
-import DeletePublication from './Alert/DeletePublication';
+import GardenerActions from "@components/Publication/Actions/HigherActions/GardenerActions";
+import { Alert } from "@hey/ui";
+import type { FC } from "react";
+import { useGlobalAlertStateStore } from "src/store/non-persisted/useGlobalAlertStateStore";
+import BlockOrUnBlockProfile from "./Alert/BlockOrUnBlockProfile";
+import DeletePublication from "./Alert/DeletePublication";
 
 const GlobalAlerts: FC = () => {
-  const showModActionAlert = useGlobalAlertStateStore((state) => state.showModActionAlert);
-  const modingPublication = useGlobalAlertStateStore((state) => state.modingPublication);
-  const setShowModActionAlert = useGlobalAlertStateStore((state) => state.setShowModActionAlert);
+  const {
+    blockingorUnblockingProfile,
+    modingPublication,
+    setShowGardenerActionsAlert,
+    showGardenerActionsAlert
+  } = useGlobalAlertStateStore();
+
+  const handleCloseGardenerActionsAlert = () => {
+    setShowGardenerActionsAlert(false, null);
+  };
 
   return (
     <>
       <DeletePublication />
-      {modingPublication ? (
+      {modingPublication && (
         <Alert
-          show={showModActionAlert}
-          title={t`Mod actions`}
-          description={t`Perform mod actions on this publication.`}
-          onClose={() => setShowModActionAlert(false, null)}
+          description="Perform mod actions on this publication."
+          onClose={handleCloseGardenerActionsAlert}
+          show={showGardenerActionsAlert}
+          title="Mod actions"
         >
-          <ModAction publication={modingPublication} />
+          <GardenerActions publication={modingPublication} />
         </Alert>
-      ) : null}
+      )}
+      {blockingorUnblockingProfile && <BlockOrUnBlockProfile />}
     </>
   );
 };

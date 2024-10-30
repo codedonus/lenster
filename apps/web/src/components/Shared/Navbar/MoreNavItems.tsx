@@ -1,53 +1,66 @@
-import { Menu } from '@headlessui/react';
-import { Trans } from '@lingui/macro';
-import clsx from 'clsx';
-import type { FC } from 'react';
-import { Fragment } from 'react';
-
-import MenuTransition from '../MenuTransition';
-import Contact from './NavItems/Contact';
-import ReportBug from './NavItems/ReportBug';
-
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { H6 } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import type { FC } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import MenuTransition from "../MenuTransition";
+import Analytics from "./NavItems/Analytics";
+import Bookmarks from "./NavItems/Bookmarks";
+import Support from "./NavItems/Support";
 const MoreNavItems: FC = () => {
+  const { currentProfile } = useProfileStore();
+
   return (
-    <Menu as="div" data-testid="nav-item-more">
+    <Menu as="div">
       {({ open }) => (
         <>
-          <Menu.Button
-            className={clsx(
-              'w-full cursor-pointer rounded-md px-2 py-1 text-left text-sm font-bold tracking-wide md:px-3',
+          <MenuButton
+            className={cn(
+              "w-full cursor-pointer rounded-md px-2 py-1 text-left tracking-wide md:px-3",
               {
-                'bg-gray-200 text-black dark:bg-gray-800 dark:text-white': open,
-                'text-gray-700 hover:bg-gray-200 hover:text-black dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white':
+                "bg-gray-200 text-black dark:bg-gray-800 dark:text-white": open,
+                "text-gray-700 hover:bg-gray-200 hover:text-black dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white":
                   !open
               }
             )}
           >
-            <Trans>More</Trans>
-          </Menu.Button>
+            <H6>More</H6>
+          </MenuButton>
           <MenuTransition>
-            <Menu.Items
+            <MenuItems
+              className="absolute mt-2 rounded-xl border bg-white shadow-sm focus:outline-none dark:border-gray-700 dark:bg-gray-900"
               static
-              className="absolute mt-2 rounded-xl border bg-white py-1 shadow-sm focus:outline-none dark:border-gray-700 dark:bg-gray-900"
-              data-testid="nav-item-more-dropdown"
             >
-              <Menu.Item
+              {currentProfile ? (
+                <>
+                  <MenuItem
+                    as="div"
+                    className={({ focus }: { focus: boolean }) =>
+                      cn({ "dropdown-active": focus }, "m-2 rounded-lg")
+                    }
+                  >
+                    <Bookmarks />
+                  </MenuItem>
+                  <MenuItem
+                    as="div"
+                    className={({ focus }: { focus: boolean }) =>
+                      cn({ "dropdown-active": focus }, "m-2 rounded-lg")
+                    }
+                  >
+                    <Analytics />
+                  </MenuItem>
+                  <div className="divider" />
+                </>
+              ) : null}
+              <MenuItem
                 as="div"
-                className={({ active }: { active: boolean }) =>
-                  clsx({ 'dropdown-active': active }, 'm-2 rounded-lg')
+                className={({ focus }: { focus: boolean }) =>
+                  cn({ "dropdown-active": focus }, "m-2 rounded-lg")
                 }
               >
-                <Contact />
-              </Menu.Item>
-              <Menu.Item
-                as="div"
-                className={({ active }: { active: boolean }) =>
-                  clsx({ 'dropdown-active': active }, 'm-2 rounded-lg')
-                }
-              >
-                <ReportBug />
-              </Menu.Item>
-            </Menu.Items>
+                <Support />
+              </MenuItem>
+            </MenuItems>
           </MenuTransition>
         </>
       )}

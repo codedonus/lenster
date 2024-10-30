@@ -1,166 +1,148 @@
-import { HeartIcon, SunIcon } from '@heroicons/react/outline';
-import { HeartIcon as HeartIconSolid, SunIcon as SunIconSolid } from '@heroicons/react/solid';
-import { Mixpanel } from '@lib/mixpanel';
-import onError from '@lib/onError';
-import { t } from '@lingui/macro';
-import clsx from 'clsx';
-import Errors from 'data/errors';
-import { motion } from 'framer-motion';
-import type { Publication } from 'lens';
-import { ReactionTypes, useAddReactionMutation, useRemoveReactionMutation } from 'lens';
-import type { ApolloCache } from 'lens/apollo';
-import { publicationKeyFields } from 'lens/apollo/lib';
-import hasGm from 'lib/hasGm';
-import nFormatter from 'lib/nFormatter';
-import { useRouter } from 'next/router';
-import type { FC } from 'react';
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { useAppStore } from 'src/store/app';
-import { usePreferencesStore } from 'src/store/preferences';
-import { PUBLICATION } from 'src/tracking';
-import { Tooltip } from 'ui';
+import type { ApolloCache } from "@apollo/client";
+import errorToast from "@helpers/errorToast";
+import { Leafwatch } from "@helpers/leafwatch";
+import { HeartIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
+import { Errors } from "@hey/data/errors";
+import { PUBLICATION } from "@hey/data/tracking";
+import nFormatter from "@hey/helpers/nFormatter";
+import type { MirrorablePublication, ReactionRequest } from "@hey/lens";
+import {
+  PublicationReactionType,
+  useAddReactionMutation,
+  useRemoveReactionMutation
+} from "@hey/lens";
+import { Tooltip } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import { useCounter, useToggle } from "@uidotdev/usehooks";
+import type { FC } from "react";
+import toast from "react-hot-toast";
+import { useProfileStatus } from "src/store/non-persisted/useProfileStatus";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
 
 interface LikeProps {
-  publication: Publication;
+  publication: MirrorablePublication;
   showCount: boolean;
 }
 
 const Like: FC<LikeProps> = ({ publication, showCount }) => {
-  const { pathname } = useRouter();
-  const isMirror = publication.__typename === 'Mirror';
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const hideLikesCount = usePreferencesStore((state) => state.hideLikesCount);
-  const [liked, setLiked] = useState(
-    (isMirror ? publication?.mirrorOf?.reaction : publication?.reaction) === 'UPVOTE'
+  const { currentProfile } = useProfileStore();
+  const { isSuspended } = useProfileStatus();
+
+  const [hasReacted, toggleReact] = useToggle(
+    publication.operations.hasReacted
   );
-  const [count, setCount] = useState(
-    isMirror ? publication?.mirrorOf?.stats?.totalUpvotes : publication?.stats?.totalUpvotes
+  const [reactions, { decrement, increment }] = useCounter(
+    publication.stats.reactions
   );
 
-  const updateCache = (cache: ApolloCache<any>, type: ReactionTypes.Upvote | ReactionTypes.Downvote) => {
-    if (showCount || hideLikesCount) {
-      cache.modify({
-        id: publicationKeyFields(isMirror ? publication?.mirrorOf : publication),
-        fields: {
-          stats: (stats) => ({
-            ...stats,
-            totalUpvotes: type === ReactionTypes.Upvote ? stats.totalUpvotes + 1 : stats.totalUpvotes - 1
-          })
+  const updateCache = (cache: ApolloCache<any>) => {
+    cache.modify({
+      fields: {
+        operations: (existingValue) => {
+          return {
+            ...existingValue,
+            // TODO: This is a hack to make the cache update
+            'hasReacted({"request":{"type":"UPVOTE"}})': !hasReacted
+          };
         }
-      });
-    }
+      },
+      id: cache.identify(publication)
+    });
+    cache.modify({
+      fields: {
+        reactions: () => (hasReacted ? reactions - 1 : reactions + 1)
+      },
+      id: cache.identify(publication.stats)
+    });
   };
 
-  const getLikeSource = () => {
-    if (pathname === '/') {
-      return 'home_feed';
-    } else if (pathname === '/u/[username]') {
-      return 'profile_feed';
-    } else if (pathname === '/explore') {
-      return 'explore_feed';
-    } else if (pathname === '/posts/[id]') {
-      return 'post_page';
-    } else {
-      return;
-    }
+  const onError = (error: any) => {
+    errorToast(error);
   };
 
-  const getEventProperties = (type: 'like' | 'dislike') => {
-    return {
-      [`${type}_publication`]: publication?.id,
-      [`${type}_source`]: getLikeSource()
-    };
-  };
+  const eventProperties = { publication_id: publication?.id };
 
   const [addReaction] = useAddReactionMutation({
-    onCompleted: () => {
-      Mixpanel.track(PUBLICATION.LIKE, getEventProperties('like'));
-    },
+    onCompleted: () => Leafwatch.track(PUBLICATION.LIKE, eventProperties),
     onError: (error) => {
-      setLiked(!liked);
-      setCount(count - 1);
+      toggleReact();
+      decrement();
       onError(error);
     },
-    update: (cache) => updateCache(cache, ReactionTypes.Upvote)
+    update: updateCache
   });
 
   const [removeReaction] = useRemoveReactionMutation({
-    onCompleted: () => {
-      Mixpanel.track(PUBLICATION.DISLIKE, getEventProperties('dislike'));
-    },
+    onCompleted: () => Leafwatch.track(PUBLICATION.UNLIKE, eventProperties),
     onError: (error) => {
-      setLiked(!liked);
-      setCount(count + 1);
+      toggleReact();
+      increment();
       onError(error);
     },
-    update: (cache) => updateCache(cache, ReactionTypes.Downvote)
+    update: updateCache
   });
 
-  const createLike = () => {
+  const createLike = async () => {
     if (!currentProfile) {
       return toast.error(Errors.SignWallet);
     }
 
-    const variable = {
-      variables: {
-        request: {
-          profileId: currentProfile?.id,
-          reaction: ReactionTypes.Upvote,
-          publicationId: publication.__typename === 'Mirror' ? publication?.mirrorOf?.id : publication?.id
-        }
-      }
+    if (isSuspended) {
+      return toast.error(Errors.Suspended);
+    }
+
+    const request: ReactionRequest = {
+      for: publication.id,
+      reaction: PublicationReactionType.Upvote
     };
 
-    if (liked) {
-      setLiked(false);
-      setCount(count - 1);
-      removeReaction(variable);
-    } else {
-      setLiked(true);
-      setCount(count + 1);
-      addReaction(variable);
+    toggleReact();
+
+    if (hasReacted) {
+      decrement();
+      return await removeReaction({ variables: { request } });
     }
+
+    increment();
+    return await addReaction({ variables: { request } });
   };
 
-  const iconClassName = showCount ? 'w-[17px] sm:w-[20px]' : 'w-[15px] sm:w-[18px]';
-  const { content } = publication.metadata;
-  const isGM = hasGm(content);
+  const iconClassName = showCount
+    ? "w-[17px] sm:w-[20px]"
+    : "w-[15px] sm:w-[18px]";
 
   return (
-    <div className={clsx(isGM ? 'text-yellow-600' : 'text-pink-500', 'flex items-center space-x-1')}>
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        animate={{
-          rotate: isGM && liked ? 90 : 0
-        }}
-        onClick={createLike}
-        aria-label="Like"
-      >
-        <div
-          className={clsx(
-            isGM ? 'hover:bg-yellow-400' : 'hover:bg-pink-300',
-            'rounded-full p-1.5 hover:bg-opacity-20'
-          )}
-        >
-          <Tooltip placement="top" content={liked ? t`Dislike` : t`Like`} withDelay>
-            {liked ? (
-              isGM ? (
-                <SunIconSolid className={iconClassName} />
-              ) : (
-                <HeartIconSolid className={iconClassName} />
-              )
-            ) : isGM ? (
-              <SunIcon className={iconClassName} />
-            ) : (
-              <HeartIcon className={iconClassName} />
-            )}
-          </Tooltip>
-        </div>
-      </motion.button>
-      {count > 0 && !showCount && !hideLikesCount && (
-        <span className="text-[11px] sm:text-xs">{nFormatter(count)}</span>
+    <div
+      className={cn(
+        hasReacted ? "text-brand-500" : "ld-text-gray-500",
+        "flex items-center space-x-1"
       )}
+    >
+      <button
+        aria-label="Like"
+        className={cn(
+          hasReacted ? "hover:bg-brand-300/20" : "hover:bg-gray-300/20",
+          "rounded-full p-1.5 outline-offset-2"
+        )}
+        onClick={createLike}
+        type="button"
+      >
+        <Tooltip
+          content={hasReacted ? "Unlike" : "Like"}
+          placement="top"
+          withDelay
+        >
+          {hasReacted ? (
+            <HeartIconSolid className={iconClassName} />
+          ) : (
+            <HeartIcon className={iconClassName} />
+          )}
+        </Tooltip>
+      </button>
+      {reactions > 0 && !showCount ? (
+        <span className="text-[11px] sm:text-xs">{nFormatter(reactions)}</span>
+      ) : null}
     </div>
   );
 };

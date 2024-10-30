@@ -1,65 +1,58 @@
-import { CollectionIcon, GlobeAltIcon, HashtagIcon, LinkIcon } from '@heroicons/react/outline';
-import { ShieldCheckIcon } from '@heroicons/react/solid';
-import type { Publication } from 'lens';
-import sanitizeDStorageUrl from 'lib/sanitizeDStorageUrl';
-import type { FC } from 'react';
-import { Card } from 'ui';
-
-import MetaDetails from './MetaDetails';
+import MetaDetails from "@components/Shared/MetaDetails";
+import { HashtagIcon, ShoppingBagIcon } from "@heroicons/react/24/outline";
+import { ShieldCheckIcon } from "@heroicons/react/24/solid";
+import { isCommentPublication } from "@hey/helpers/publicationHelpers";
+import type { MirrorablePublication } from "@hey/lens";
+import { Card, H5 } from "@hey/ui";
+import type { FC } from "react";
 
 interface PublicationStaffToolProps {
-  publication: Publication;
+  publication: MirrorablePublication;
 }
 
-const PublicationStaffTool: FC<PublicationStaffToolProps> = ({ publication }) => {
-  const isComment = publication.__typename === 'Comment';
+const PublicationStaffTool: FC<PublicationStaffToolProps> = ({
+  publication
+}) => {
+  const isComment = isCommentPublication(publication);
 
   return (
-    <Card as="aside" className="mt-5 border-yellow-400 !bg-yellow-300 !bg-opacity-20 p-5">
+    <Card
+      as="aside"
+      className="!bg-yellow-300/20 mt-5 border-yellow-400 p-5"
+      forceRounded
+    >
       <div className="flex items-center space-x-2 text-yellow-600">
-        <ShieldCheckIcon className="h-5 w-5" />
-        <div className="text-lg font-bold">Staff tool</div>
+        <ShieldCheckIcon className="size-5" />
+        <H5>Staff tool</H5>
       </div>
-      <div className="mt-3 space-y-1.5">
+      <div className="mt-3 space-y-2">
         <MetaDetails
-          icon={<HashtagIcon className="lt-text-gray-500 h-4 w-4" />}
-          value={publication?.id}
+          icon={<HashtagIcon className="ld-text-gray-500 size-4" />}
           title="Publication ID"
+          value={publication?.id}
         >
           {publication?.id}
         </MetaDetails>
         {isComment ? (
           <MetaDetails
-            icon={<HashtagIcon className="lt-text-gray-500 h-4 w-4" />}
+            icon={<HashtagIcon className="ld-text-gray-500 size-4" />}
+            title="Comment on"
             value={publication?.commentOn?.id}
-            title="Parent ID"
           >
             {publication?.commentOn?.id}
           </MetaDetails>
         ) : null}
-        <MetaDetails
-          icon={<CollectionIcon className="lt-text-gray-500 h-4 w-4" />}
-          value={publication?.collectModule?.type}
-          title="Collect module"
-        >
-          {publication?.collectModule?.type}
-        </MetaDetails>
-        <MetaDetails
-          icon={<GlobeAltIcon className="lt-text-gray-500 h-4 w-4" />}
-          value={publication?.id}
-          title="Posted via"
-        >
-          {publication?.appId}
-        </MetaDetails>
-        <MetaDetails
-          icon={<LinkIcon className="lt-text-gray-500 h-4 w-4" />}
-          value={sanitizeDStorageUrl(publication?.onChainContentURI)}
-          title="On-chain content URI"
-        >
-          <a href={sanitizeDStorageUrl(publication?.onChainContentURI)} target="_blank" rel="noreferrer">
-            Open
-          </a>
-        </MetaDetails>
+        {publication?.openActionModules?.length ? (
+          <MetaDetails
+            icon={<ShoppingBagIcon className="ld-text-gray-500 size-4" />}
+            noFlex
+            title="Open action modules"
+          >
+            {(publication?.openActionModules || []).map((module) => (
+              <div key={module.__typename}>{module.__typename}</div>
+            ))}
+          </MetaDetails>
+        ) : null}
       </div>
     </Card>
   );

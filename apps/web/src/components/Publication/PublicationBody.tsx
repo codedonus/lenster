@@ -1,52 +1,144 @@
-import Attachments from '@components/Shared/Attachments';
-import IFramely from '@components/Shared/IFramely';
-import Markup from '@components/Shared/Markup';
-import { EyeIcon } from '@heroicons/react/outline';
-import { Trans } from '@lingui/macro';
-import clsx from 'clsx';
-import type { Publication } from 'lens';
-import getURLs from 'lib/getURLs';
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import type { FC } from 'react';
-
-import DecryptedPublicationBody from './DecryptedPublicationBody';
+import Attachments from "@components/Shared/Attachments";
+import Quote from "@components/Shared/Embed/Quote";
+import Markup from "@components/Shared/Markup";
+import Oembed from "@components/Shared/Oembed";
+import Video from "@components/Shared/Video";
+import { EyeIcon } from "@heroicons/react/24/outline";
+import { KNOWN_ATTRIBUTES } from "@hey/data/constants";
+import getPublicationAttribute from "@hey/helpers/getPublicationAttribute";
+import getPublicationData from "@hey/helpers/getPublicationData";
+import getURLs from "@hey/helpers/getURLs";
+import isPublicationMetadataTypeAllowed from "@hey/helpers/isPublicationMetadataTypeAllowed";
+import { isMirrorPublication } from "@hey/helpers/publicationHelpers";
+import type { AnyPublication } from "@hey/lens";
+import { H6 } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import { getSrc } from "@livepeer/react/external";
+import Link from "next/link";
+import type { FC } from "react";
+import { memo } from "react";
+import { isIOS, isMobile } from "react-device-detect";
+import Checkin from "./Checkin";
+import EncryptedPublication from "./EncryptedPublication";
+import Metadata from "./Metadata";
+import NotSupportedPublication from "./NotSupportedPublication";
+import Poll from "./Poll";
 
 interface PublicationBodyProps {
-  publication: Publication;
+  contentClassName?: string;
+  publication: AnyPublication;
+  quoted?: boolean;
+  showMore?: boolean;
 }
 
-const PublicationBody: FC<PublicationBodyProps> = ({ publication }) => {
-  const { pathname } = useRouter();
-  const showMore = publication?.metadata?.content?.length > 450 && pathname !== '/posts/[id]';
+const PublicationBody: FC<PublicationBodyProps> = ({
+  contentClassName = "",
+  publication,
+  quoted = false,
+  showMore = false
+}) => {
+  const targetPublication = isMirrorPublication(publication)
+    ? publication.mirrorOn
+    : publication;
+  const { id, metadata } = targetPublication;
 
-  if (publication?.metadata?.encryptionParams) {
-    return <DecryptedPublicationBody encryptedPublication={publication} />;
+  const filteredContent = getPublicationData(metadata)?.content || "";
+  const filteredAttachments = getPublicationData(metadata)?.attachments || [];
+  const filteredAsset = getPublicationData(metadata)?.asset;
+
+  const canShowMore = filteredContent?.length > 450 && showMore;
+  const urls = getURLs(filteredContent);
+  const hasURLs = urls.length > 0;
+
+  let content = filteredContent;
+
+  if (isIOS && isMobile && canShowMore) {
+    const truncatedContent = content?.split("\n")?.[0];
+    if (truncatedContent) {
+      content = truncatedContent;
+    }
   }
+
+  if (targetPublication.isEncrypted) {
+    return <EncryptedPublication />;
+  }
+
+  if (!isPublicationMetadataTypeAllowed(metadata.__typename)) {
+    return <NotSupportedPublication type={metadata.__typename} />;
+  }
+
+  // Show live if it's there
+  const showLive = metadata.__typename === "LiveStreamMetadataV3";
+  // Show attachments if it's there
+  const showAttachments = filteredAttachments.length > 0 || filteredAsset;
+  // Show poll
+  const pollId = getPublicationAttribute(
+    metadata.attributes,
+    KNOWN_ATTRIBUTES.POLL_ID
+  );
+  const showPoll = Boolean(pollId);
+  // Show sharing link
+  const showSharingLink = metadata.__typename === "LinkMetadataV3";
+  // Show checking in
+  const showCheckin = metadata.__typename === "CheckingInMetadataV3";
+  // Show quote
+  const showQuote = targetPublication.__typename === "Quote";
+  // Show oembed if no NFT, no attachments, no quoted publication
+  const hideOembed =
+    getPublicationAttribute(
+      metadata.attributes,
+      KNOWN_ATTRIBUTES.HIDE_OEMBED
+    ) === "true";
+  const showOembed =
+    !hideOembed &&
+    !showSharingLink &&
+    !showCheckin &&
+    hasURLs &&
+    !showLive &&
+    !showAttachments &&
+    !quoted &&
+    !showQuote;
 
   return (
     <div className="break-words">
-      <Markup className={clsx({ 'line-clamp-5': showMore }, 'markup linkify text-md break-words')}>
-        {publication?.metadata?.content}
+      <Markup
+        className={cn(
+          { "line-clamp-5": canShowMore },
+          "markup linkify break-words text-md",
+          contentClassName
+        )}
+        mentions={targetPublication.profilesMentioned}
+      >
+        {content}
       </Markup>
-      {showMore && (
-        <div className="lt-text-gray-500 mt-4 flex items-center space-x-1 text-sm font-bold">
-          <EyeIcon className="h-4 w-4" />
-          <Link href={`/posts/${publication?.id}`}>
-            <Trans>Show more</Trans>
-          </Link>
+      {canShowMore ? (
+        <H6 className="ld-text-gray-500 mt-4 flex items-center space-x-1">
+          <EyeIcon className="size-4" />
+          <Link href={`/posts/${id}`}>Show more</Link>
+        </H6>
+      ) : null}
+      {/* Attachments and Quotes */}
+      {showAttachments ? (
+        <Attachments asset={filteredAsset} attachments={filteredAttachments} />
+      ) : null}
+      {/* Poll */}
+      {showPoll ? <Poll id={pollId} /> : null}
+      {showLive ? (
+        <div className="mt-3">
+          <Video src={getSrc(metadata.liveURL || metadata.playbackURL)} />
         </div>
-      )}
-      {publication?.metadata?.media?.length > 0 ? (
-        <Attachments attachments={publication?.metadata?.media} publication={publication} />
-      ) : (
-        publication?.metadata?.content &&
-        getURLs(publication?.metadata?.content)?.length > 0 && (
-          <IFramely url={getURLs(publication?.metadata?.content)[0]} />
-        )
-      )}
+      ) : null}
+      {showCheckin ? <Checkin publication={targetPublication} /> : null}
+      {showOembed ? (
+        <Oembed publication={targetPublication} url={urls[0]} />
+      ) : null}
+      {showSharingLink ? (
+        <Oembed publication={targetPublication} url={metadata.sharingLink} />
+      ) : null}
+      {showQuote && <Quote publication={targetPublication.quoteOn} />}
+      <Metadata metadata={targetPublication.metadata} />
     </div>
   );
 };
 
-export default PublicationBody;
+export default memo(PublicationBody);

@@ -1,36 +1,38 @@
-import { SwitchHorizontalIcon } from '@heroicons/react/outline';
-import { Mixpanel } from '@lib/mixpanel';
-import { t, Trans } from '@lingui/macro';
-import type { FC } from 'react';
-import toast from 'react-hot-toast';
-import { CHAIN_ID } from 'src/constants';
-import { SYSTEM } from 'src/tracking';
-import { Button } from 'ui';
-import { useSwitchNetwork } from 'wagmi';
+import { Leafwatch } from "@helpers/leafwatch";
+import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
+import { SYSTEM } from "@hey/data/tracking";
+import { Button } from "@hey/ui";
+import type { FC } from "react";
+import { useSwitchChain } from "wagmi";
 
 interface SwitchNetworkProps {
   className?: string;
+  onSwitch?: () => void;
+  title?: string;
+  toChainId: number;
 }
 
-const SwitchNetwork: FC<SwitchNetworkProps> = ({ className = '' }) => {
-  const { switchNetwork } = useSwitchNetwork();
+const SwitchNetwork: FC<SwitchNetworkProps> = ({
+  className = "",
+  onSwitch,
+  title = "Switch Network",
+  toChainId
+}) => {
+  const { switchChain } = useSwitchChain();
 
   return (
     <Button
       className={className}
+      icon={<ArrowsRightLeftIcon className="size-4" />}
+      onClick={() => {
+        onSwitch?.();
+        switchChain?.({ chainId: toChainId });
+        Leafwatch.track(SYSTEM.SWITCH_NETWORK, { chain: toChainId });
+      }}
       type="button"
       variant="danger"
-      icon={<SwitchHorizontalIcon className="h-4 w-4" />}
-      onClick={() => {
-        if (switchNetwork) {
-          switchNetwork(CHAIN_ID);
-        } else {
-          toast.error(t`Please change your network wallet!`);
-        }
-        Mixpanel.track(SYSTEM.SWITCH_NETWORK);
-      }}
     >
-      <Trans>Switch Network</Trans>
+      {title}
     </Button>
   );
 };

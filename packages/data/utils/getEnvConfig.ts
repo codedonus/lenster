@@ -1,69 +1,39 @@
-import { LENS_NETWORK } from '../constants';
-import { MainnetContracts, SandboxContracts, TestnetContracts } from '../contracts';
-import LensEndpoint from '../lens-endpoints';
+import { LENS_NETWORK } from "../constants";
+import { MainnetContracts, TestnetContracts } from "../contracts";
+import LensEndpoint from "../lens-endpoints";
 
 const getEnvConfig = (): {
-  apiEndpoint: string;
-  lensHubProxyAddress: `0x${string}`;
-  lensPeripheryAddress: `0x${string}`;
   defaultCollectToken: string;
-  UpdateOwnableFeeCollectModuleAddress: `0x${string}`;
-  litProtocolEnvironment: string;
+  heyLensSignup: `0x${string}`;
+  heyTipping: `0x${string}`;
+  lensApiEndpoint: string;
+  lensHandles: `0x${string}`;
+  lensHub: `0x${string}`;
+  permissionlessCreator?: `0x${string}`;
+  tokenHandleRegistry: `0x${string}`;
 } => {
   switch (LENS_NETWORK) {
-    case 'mainnet':
+    case "testnet":
       return {
-        apiEndpoint: LensEndpoint.Mainnet,
-        lensHubProxyAddress: MainnetContracts.LensHubProxy,
-        lensPeripheryAddress: MainnetContracts.LensPeriphery,
-        defaultCollectToken: MainnetContracts.DefaultToken,
-        UpdateOwnableFeeCollectModuleAddress: MainnetContracts.UpdateOwnableFeeCollectModule,
-        litProtocolEnvironment: 'polygon'
-      };
-    case 'testnet':
-      return {
-        apiEndpoint: LensEndpoint.Testnet,
-        lensHubProxyAddress: TestnetContracts.LensHubProxy,
-        lensPeripheryAddress: TestnetContracts.LensPeriphery,
         defaultCollectToken: TestnetContracts.DefaultToken,
-        UpdateOwnableFeeCollectModuleAddress: TestnetContracts.UpdateOwnableFeeCollectModule,
-        litProtocolEnvironment: 'mumbai'
-      };
-    case 'staging':
-      return {
-        apiEndpoint: LensEndpoint.Staging,
-        lensHubProxyAddress: TestnetContracts.LensHubProxy,
-        lensPeripheryAddress: TestnetContracts.LensPeriphery,
-        defaultCollectToken: TestnetContracts.DefaultToken,
-        UpdateOwnableFeeCollectModuleAddress: TestnetContracts.UpdateOwnableFeeCollectModule,
-        litProtocolEnvironment: 'mumbai'
-      };
-    case 'sandbox':
-      return {
-        apiEndpoint: LensEndpoint.Sandbox,
-        lensHubProxyAddress: SandboxContracts.LensHubProxy,
-        lensPeripheryAddress: SandboxContracts.LensPeriphery,
-        defaultCollectToken: TestnetContracts.DefaultToken,
-        UpdateOwnableFeeCollectModuleAddress: TestnetContracts.UpdateOwnableFeeCollectModule,
-        litProtocolEnvironment: 'mumbai-sandbox'
-      };
-    case 'staging-sandbox':
-      return {
-        apiEndpoint: LensEndpoint.StagingSandbox,
-        lensHubProxyAddress: SandboxContracts.LensHubProxy,
-        lensPeripheryAddress: SandboxContracts.LensPeriphery,
-        defaultCollectToken: TestnetContracts.DefaultToken,
-        UpdateOwnableFeeCollectModuleAddress: TestnetContracts.UpdateOwnableFeeCollectModule,
-        litProtocolEnvironment: 'mumbai-sandbox'
+        heyLensSignup: TestnetContracts.HeyLensSignup,
+        heyTipping: TestnetContracts.HeyTipping,
+        lensApiEndpoint: LensEndpoint.Testnet,
+        lensHandles: TestnetContracts.LensHandles,
+        lensHub: TestnetContracts.LensHub,
+        permissionlessCreator: TestnetContracts.PermissionlessCreator,
+        tokenHandleRegistry: TestnetContracts.TokenHandleRegistry
       };
     default:
       return {
-        apiEndpoint: LensEndpoint.Mainnet,
-        lensHubProxyAddress: MainnetContracts.LensHubProxy,
-        lensPeripheryAddress: MainnetContracts.LensPeriphery,
         defaultCollectToken: MainnetContracts.DefaultToken,
-        UpdateOwnableFeeCollectModuleAddress: MainnetContracts.UpdateOwnableFeeCollectModule,
-        litProtocolEnvironment: 'polygon'
+        heyLensSignup: MainnetContracts.HeyLensSignup,
+        heyTipping: MainnetContracts.HeyTipping,
+        lensApiEndpoint: LensEndpoint.Mainnet,
+        lensHandles: MainnetContracts.LensHandles,
+        lensHub: MainnetContracts.LensHub,
+        permissionlessCreator: MainnetContracts.PermissionlessCreator,
+        tokenHandleRegistry: MainnetContracts.TokenHandleRegistry
       };
   }
 };

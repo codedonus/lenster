@@ -1,48 +1,20 @@
-import '../styles.css';
-
-import Loading from '@components/Shared/Loading';
-import type { AppProps } from 'next/app';
-import localFont from 'next/font/local';
-import { lazy, Suspense } from 'react';
-
-const Providers = lazy(() => import('@components/Common/Providers'));
-
-const circluarStd = localFont({
-  src: [
-    {
-      path: '../../public/fonts/CircularXXSub-Book.woff',
-      weight: '400',
-      style: 'normal'
-    },
-    {
-      path: '../../public/fonts/CircularXXSub-Medium.woff',
-      weight: '500',
-      style: 'medium'
-    },
-    {
-      path: '../../public/fonts/CircularXXSub-Bold.woff',
-      weight: '700',
-      style: 'bold'
-    }
-  ],
-  variable: '--lenster-font',
-  fallback: ['sans-serif'],
-  preload: true,
-  display: 'swap'
-});
+import Providers from "@components/Common/Providers";
+import { heyFont } from "@helpers/fonts";
+import { AxiomWebVitals } from "next-axiom";
+import type { AppProps } from "next/app";
+import "../styles.css";
 
 const App = ({ Component, pageProps }: AppProps) => {
   return (
-    <Suspense fallback={<Loading />}>
-      <Providers>
-        <style jsx global>{`
-          body {
-            font-family: ${circluarStd.style.fontFamily};
-          }
-        `}</style>
-        <Component {...pageProps} />
-      </Providers>
-    </Suspense>
+    <Providers>
+      <style global jsx>{`
+        body {
+          font-family: ${heyFont.style.fontFamily};
+        }
+      `}</style>
+      <AxiomWebVitals />
+      <Component {...pageProps} />
+    </Providers>
   );
 };
 

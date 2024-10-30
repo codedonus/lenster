@@ -1,0 +1,7 @@
+fragment HandleInfoFields on HandleInfo {
+  fullHandle
+  localName
+  linkedTo {
+    nftTokenId
+  }
+}

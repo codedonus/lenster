@@ -1,1 +1,0 @@
-# Lenster Prerender for SEO

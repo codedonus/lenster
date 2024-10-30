@@ -1,55 +1,69 @@
-import SinglePublication from '@components/Publication/SinglePublication';
-import PublicationsShimmer from '@components/Shared/Shimmer/PublicationsShimmer';
-import { CollectionIcon } from '@heroicons/react/outline';
-import { t, Trans } from '@lingui/macro';
-import type { Publication, PublicationSearchResult, SearchQueryRequest } from 'lens';
-import { CustomFiltersTypes, SearchRequestTypes, useSearchPublicationsQuery } from 'lens';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useInView } from 'react-cool-inview';
-import { useAppStore } from 'src/store/app';
-import { Card, EmptyState, ErrorMessage } from 'ui';
+import SinglePublication from "@components/Publication/SinglePublication";
+import PublicationsShimmer from "@components/Shared/Shimmer/PublicationsShimmer";
+import { ChatBubbleBottomCenterIcon } from "@heroicons/react/24/outline";
+import type { AnyPublication, PublicationSearchRequest } from "@hey/lens";
+import {
+  CustomFiltersType,
+  LimitType,
+  useSearchPublicationsQuery
+} from "@hey/lens";
+import { Card, EmptyState, ErrorMessage } from "@hey/ui";
+import type { FC } from "react";
+import { useRef } from "react";
+import type { StateSnapshot, VirtuosoHandle } from "react-virtuoso";
+import { Virtuoso } from "react-virtuoso";
+import { useImpressionsStore } from "src/store/non-persisted/useImpressionsStore";
+import { useTipsStore } from "src/store/non-persisted/useTipsStore";
+
+let virtuosoState: any = { ranges: [], screenTop: 0 };
 
 interface PublicationsProps {
-  query: string | string[];
+  query: string;
 }
 
 const Publications: FC<PublicationsProps> = ({ query }) => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const [hasMore, setHasMore] = useState(true);
+  const { fetchAndStoreViews } = useImpressionsStore();
+  const { fetchAndStoreTips } = useTipsStore();
+  const virtuoso = useRef<VirtuosoHandle>(null);
 
-  // Variables
-  const request: SearchQueryRequest = {
+  const request: PublicationSearchRequest = {
+    limit: LimitType.TwentyFive,
     query,
-    type: SearchRequestTypes.Publication,
-    customFilters: [CustomFiltersTypes.Gardeners],
-    limit: 10
+    where: { customFilters: [CustomFiltersType.Gardeners] }
   };
-  const reactionRequest = currentProfile ? { profileId: currentProfile?.id } : null;
-  const profileId = currentProfile?.id ?? null;
 
-  const { data, loading, error, fetchMore } = useSearchPublicationsQuery({
-    variables: { request, reactionRequest, profileId }
+  const { data, error, fetchMore, loading } = useSearchPublicationsQuery({
+    onCompleted: async ({ searchPublications }) => {
+      const ids = searchPublications?.items?.map((p) => p.id) || [];
+      await fetchAndStoreViews(ids);
+      await fetchAndStoreTips(ids);
+    },
+    variables: { request }
   });
 
-  const search = data?.search as PublicationSearchResult;
-  const publications = search?.items as Publication[];
+  const search = data?.searchPublications;
+  const publications = search?.items as AnyPublication[];
   const pageInfo = search?.pageInfo;
+  const hasMore = pageInfo?.next;
 
-  const { observe } = useInView({
-    onChange: async ({ inView }) => {
-      if (!inView || !hasMore) {
-        return;
-      }
-
-      await fetchMore({
-        variables: { request: { ...request, cursor: pageInfo?.next }, reactionRequest, profileId }
-      }).then(({ data }) => {
-        const search = data?.search as PublicationSearchResult;
-        setHasMore(search?.items?.length > 0);
+  const onScrolling = (scrolling: boolean) => {
+    if (!scrolling) {
+      virtuoso?.current?.getState((state: StateSnapshot) => {
+        virtuosoState = { ...state };
       });
     }
-  });
+  };
+
+  const onEndReached = async () => {
+    if (hasMore) {
+      const { data } = await fetchMore({
+        variables: { request: { ...request, cursor: pageInfo?.next } }
+      });
+      const ids = data?.searchPublications?.items?.map((p) => p.id) || [];
+      await fetchAndStoreViews(ids);
+      await fetchAndStoreTips(ids);
+    }
+  };
 
   if (loading) {
     return <PublicationsShimmer />;
@@ -58,29 +72,44 @@ const Publications: FC<PublicationsProps> = ({ query }) => {
   if (publications?.length === 0) {
     return (
       <EmptyState
+        icon={<ChatBubbleBottomCenterIcon className="size-8" />}
         message={
-          <Trans>
+          <span>
             No publications for <b>&ldquo;{query}&rdquo;</b>
-          </Trans>
+          </span>
         }
-        icon={<CollectionIcon className="text-brand h-8 w-8" />}
       />
     );
   }
 
   if (error) {
-    return <ErrorMessage title={t`Failed to load publications`} error={error} />;
+    return <ErrorMessage error={error} title="Failed to load publications" />;
   }
 
   return (
-    <>
-      <Card className="divide-y-[1px] dark:divide-gray-700">
-        {publications?.map((publication, index) => (
-          <SinglePublication key={`${publication?.id}_${index}`} publication={publication} />
-        ))}
-      </Card>
-      {hasMore && <span ref={observe} />}
-    </>
+    <Card>
+      <Virtuoso
+        className="virtual-divider-list-window"
+        computeItemKey={(index, publication) => `${publication?.id}-${index}`}
+        data={publications}
+        endReached={onEndReached}
+        isScrolling={onScrolling}
+        itemContent={(index, publication) => (
+          <SinglePublication
+            isFirst={index === 0}
+            isLast={index === (publications?.length || 0) - 1}
+            publication={publication}
+          />
+        )}
+        ref={virtuoso}
+        restoreStateFrom={
+          virtuosoState.ranges.length === 0
+            ? virtuosoState?.current?.getState((state: StateSnapshot) => state)
+            : virtuosoState
+        }
+        useWindowScroll
+      />
+    </Card>
   );
 };
 

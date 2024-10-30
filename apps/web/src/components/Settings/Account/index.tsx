@@ -1,39 +1,41 @@
-import MetaTags from '@components/Common/MetaTags';
-import SuperFollow from '@components/Settings/Account/SuperFollow';
-import { Mixpanel } from '@lib/mixpanel';
-import { t } from '@lingui/macro';
-import { APP_NAME } from 'data/constants';
-import type { NextPage } from 'next';
-import { useEffect } from 'react';
-import Custom404 from 'src/pages/404';
-import { useAppStore } from 'src/store/app';
-import { PAGEVIEW } from 'src/tracking';
-import { GridItemEight, GridItemFour, GridLayout } from 'ui';
-
-import SettingsSidebar from '../Sidebar';
-import SetProfile from './SetProfile';
-import Verification from './Verification';
+import MetaTags from "@components/Common/MetaTags";
+import SuperFollow from "@components/Settings/Account/SuperFollow";
+import NotLoggedIn from "@components/Shared/NotLoggedIn";
+import { Leafwatch } from "@helpers/leafwatch";
+import { APP_NAME } from "@hey/data/constants";
+import { PAGEVIEW } from "@hey/data/tracking";
+import { GridItemEight, GridItemFour, GridLayout } from "@hey/ui";
+import type { NextPage } from "next";
+import { useEffect } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import SettingsSidebar from "../Sidebar";
+import DefaultProfile from "./DefaultProfile";
+import Email from "./Email";
+import RateLimits from "./RateLimits";
+import Verification from "./Verification";
 
 const AccountSettings: NextPage = () => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
+  const { currentProfile } = useProfileStore();
 
   useEffect(() => {
-    Mixpanel.track(PAGEVIEW, { page: 'settings', subpage: 'account' });
+    Leafwatch.track(PAGEVIEW, { page: "settings", subpage: "account" });
   }, []);
 
   if (!currentProfile) {
-    return <Custom404 />;
+    return <NotLoggedIn />;
   }
 
   return (
     <GridLayout>
-      <MetaTags title={t`Account settings • ${APP_NAME}`} />
+      <MetaTags title={`Account settings • ${APP_NAME}`} />
       <GridItemFour>
         <SettingsSidebar />
       </GridItemFour>
       <GridItemEight className="space-y-5">
-        <SetProfile />
+        <Email />
         <SuperFollow />
+        <DefaultProfile />
+        <RateLimits />
         <Verification />
       </GridItemEight>
     </GridLayout>

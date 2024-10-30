@@ -1,101 +1,134 @@
-import QueuedPublication from '@components/Publication/QueuedPublication';
-import SinglePublication from '@components/Publication/SinglePublication';
-import PublicationsShimmer from '@components/Shared/Shimmer/PublicationsShimmer';
-import { CollectionIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { FeedItem, FeedRequest, Publication } from 'lens';
-import { FeedEventItemType, useTimelineQuery } from 'lens';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useInView } from 'react-cool-inview';
-import { OptmisticPublicationType } from 'src/enums';
-import { useAppStore } from 'src/store/app';
-import { useTimelinePersistStore, useTimelineStore } from 'src/store/timeline';
-import { useTransactionPersistStore } from 'src/store/transaction';
-import { Card, EmptyState, ErrorMessage } from 'ui';
+import QueuedPublication from "@components/Publication/QueuedPublication";
+import SinglePublication from "@components/Publication/SinglePublication";
+import PublicationsShimmer from "@components/Shared/Shimmer/PublicationsShimmer";
+import { UserGroupIcon } from "@heroicons/react/24/outline";
+import { HEY_CURATED_ID } from "@hey/data/constants";
+import type { AnyPublication, FeedItem, FeedRequest } from "@hey/lens";
+import { FeedEventItemType, useFeedQuery } from "@hey/lens";
+import { OptmisticPublicationType } from "@hey/types/enums";
+import { Card, EmptyState, ErrorMessage } from "@hey/ui";
+import type { FC } from "react";
+import { memo, useRef } from "react";
+import type { StateSnapshot, VirtuosoHandle } from "react-virtuoso";
+import { Virtuoso } from "react-virtuoso";
+import { useImpressionsStore } from "src/store/non-persisted/useImpressionsStore";
+import { useTipsStore } from "src/store/non-persisted/useTipsStore";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import { useTransactionStore } from "src/store/persisted/useTransactionStore";
+
+let virtuosoState: any = { ranges: [], screenTop: 0 };
 
 const Timeline: FC = () => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const txnQueue = useTransactionPersistStore((state) => state.txnQueue);
-  const feedEventFilters = useTimelinePersistStore((state) => state.feedEventFilters);
-  const seeThroughProfile = useTimelineStore((state) => state.seeThroughProfile);
-  const [hasMore, setHasMore] = useState(true);
+  const { currentProfile, fallbackToCuratedFeed } = useProfileStore();
+  const { txnQueue } = useTransactionStore();
+  const { fetchAndStoreViews } = useImpressionsStore();
+  const { fetchAndStoreTips } = useTipsStore();
+  const virtuoso = useRef<VirtuosoHandle>(null);
 
-  const getFeedEventItems = () => {
-    const filters: FeedEventItemType[] = [];
-    if (feedEventFilters.posts) {
-      filters.push(FeedEventItemType.Post, FeedEventItemType.Comment);
+  const request: FeedRequest = {
+    where: {
+      feedEventItemTypes: [
+        FeedEventItemType.Post,
+        FeedEventItemType.Mirror,
+        FeedEventItemType.Quote
+      ],
+      for: fallbackToCuratedFeed ? HEY_CURATED_ID : currentProfile?.id
     }
-    if (feedEventFilters.collects) {
-      filters.push(FeedEventItemType.CollectPost, FeedEventItemType.CollectComment);
-    }
-    if (feedEventFilters.mirrors) {
-      filters.push(FeedEventItemType.Mirror);
-    }
-    if (feedEventFilters.likes) {
-      filters.push(FeedEventItemType.ReactionPost, FeedEventItemType.ReactionComment);
-    }
-    return filters;
   };
 
-  // Variables
-  const profileId = seeThroughProfile?.id ?? currentProfile?.id;
-  const request: FeedRequest = { profileId, limit: 50, feedEventItemTypes: getFeedEventItems() };
-  const reactionRequest = currentProfile ? { profileId } : null;
-
-  const { data, loading, error, fetchMore } = useTimelineQuery({
-    variables: { request, reactionRequest, profileId }
+  const { data, error, fetchMore, loading } = useFeedQuery({
+    fetchPolicy: "cache-and-network",
+    onCompleted: async ({ feed }) => {
+      const ids =
+        feed?.items?.flatMap((p) => {
+          return [p.root.id].filter((id) => id);
+        }) || [];
+      await fetchAndStoreViews(ids);
+      await fetchAndStoreTips(ids);
+    },
+    variables: { request }
   });
 
-  const publications = data?.feed?.items;
+  const feed = data?.feed?.items.filter(
+    (item) => item.root.__typename !== "Comment"
+  );
   const pageInfo = data?.feed?.pageInfo;
+  const hasMore = pageInfo?.next;
 
-  const { observe } = useInView({
-    onChange: async ({ inView }) => {
-      if (!inView || !hasMore) {
-        return;
-      }
-
-      await fetchMore({
-        variables: { request: { ...request, cursor: pageInfo?.next }, reactionRequest, profileId }
-      }).then(({ data }) => {
-        setHasMore(data?.feed?.items?.length > 0);
+  const onScrolling = (scrolling: boolean) => {
+    if (!scrolling) {
+      virtuoso?.current?.getState((state: StateSnapshot) => {
+        virtuosoState = { ...state };
       });
     }
-  });
+  };
+
+  const onEndReached = async () => {
+    if (hasMore) {
+      const { data } = await fetchMore({
+        variables: { request: { ...request, cursor: pageInfo?.next } }
+      });
+      const ids =
+        data.feed?.items?.flatMap((p) => {
+          return [p.root.id].filter((id) => id);
+        }) || [];
+      await fetchAndStoreViews(ids);
+      await fetchAndStoreTips(ids);
+    }
+  };
 
   if (loading) {
     return <PublicationsShimmer />;
   }
 
-  if (publications?.length === 0) {
-    return <EmptyState message={t`No posts yet!`} icon={<CollectionIcon className="text-brand h-8 w-8" />} />;
+  if (feed?.length === 0) {
+    return (
+      <EmptyState
+        icon={<UserGroupIcon className="size-8" />}
+        message="No posts yet!"
+      />
+    );
   }
 
   if (error) {
-    return <ErrorMessage title={t`Failed to load timeline`} error={error} />;
+    return <ErrorMessage error={error} title="Failed to load timeline" />;
   }
 
   return (
-    <Card className="divide-y-[1px] dark:divide-gray-700">
-      {txnQueue.map(
-        (txn) =>
-          txn?.type === OptmisticPublicationType.NewPost && (
-            <div key={txn.id}>
-              <QueuedPublication txn={txn} />
-            </div>
-          )
+    <>
+      {txnQueue.map((txn) =>
+        txn?.type !== OptmisticPublicationType.Comment ? (
+          <QueuedPublication key={txn.txId} txn={txn} />
+        ) : null
       )}
-      {publications?.map((publication, index) => (
-        <SinglePublication
-          key={`${publication?.root.id}_${index}`}
-          feedItem={publication as FeedItem}
-          publication={publication.root as Publication}
+      <Card>
+        <Virtuoso
+          className="virtual-divider-list-window"
+          computeItemKey={(index, feedItem) => `${feedItem.id}-${index}`}
+          data={feed}
+          endReached={onEndReached}
+          isScrolling={onScrolling}
+          itemContent={(index, feedItem) => (
+            <SinglePublication
+              feedItem={feedItem as FeedItem}
+              isFirst={index === 0}
+              isLast={index === (feed?.length || 0) - 1}
+              publication={feedItem.root as AnyPublication}
+            />
+          )}
+          ref={virtuoso}
+          restoreStateFrom={
+            virtuosoState.ranges.length === 0
+              ? virtuosoState?.current?.getState(
+                  (state: StateSnapshot) => state
+                )
+              : virtuosoState
+          }
+          useWindowScroll
         />
-      ))}
-      {hasMore && <span ref={observe} />}
-    </Card>
+      </Card>
+    </>
   );
 };
 
-export default Timeline;
+export default memo(Timeline);

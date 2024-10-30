@@ -1,44 +1,45 @@
-import { PauseIcon, PlayIcon } from '@heroicons/react/solid';
-import { Mixpanel } from '@lib/mixpanel';
-import { t } from '@lingui/macro';
-import type { Publication } from 'lens';
-import getPublicationAttribute from 'lib/getPublicationAttribute';
-import getThumbnailUrl from 'lib/getThumbnailUrl';
-import type { APITypes } from 'plyr-react';
-import type { ChangeEvent, FC } from 'react';
-import { useRef, useState } from 'react';
-import { usePublicationStore } from 'src/store/publication';
-import { PUBLICATION } from 'src/tracking';
-import type { OptimisticTransaction } from 'src/types';
-import { object, string } from 'zod';
-
-import CoverImage from './CoverImage';
-import Player from './Player';
+import { Leafwatch } from "@helpers/leafwatch";
+import { PauseIcon, PlayIcon } from "@heroicons/react/24/solid";
+import { PUBLICATION } from "@hey/data/tracking";
+import getProfile from "@hey/helpers/getProfile";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { AnyPublication, Profile } from "@hey/lens";
+import type { APITypes } from "plyr-react";
+import type { ChangeEvent, FC } from "react";
+import { useRef, useState } from "react";
+import { usePublicationAudioStore } from "src/store/non-persisted/publication/usePublicationAudioStore";
+import { object, string } from "zod";
+import CoverImage from "./CoverImage";
+import Player from "./Player";
 
 export const AudioPublicationSchema = object({
-  title: string()
-    .trim()
-    .min(1, { message: t`Invalid audio title` }),
-  author: string()
-    .trim()
-    .min(1, { message: t`Invalid author name` }),
-  cover: string()
-    .trim()
-    .min(1, { message: t`Invalid cover image` })
+  artist: string().trim().min(1, { message: "Invalid artist name" }),
+  cover: string().trim().min(1, { message: "Invalid cover image" }),
+  title: string().trim().min(1, { message: "Invalid audio title" })
 });
 
 interface AudioProps {
-  src: string;
-  isNew?: boolean;
-  publication?: Publication;
-  txn: OptimisticTransaction;
+  artist?: string;
   expandCover: (url: string) => void;
+  isNew?: boolean;
+  poster: string;
+  publication?: AnyPublication;
+  src: string;
+  title?: string;
 }
 
-const Audio: FC<AudioProps> = ({ src, isNew = false, publication, txn, expandCover }) => {
+const Audio: FC<AudioProps> = ({
+  artist,
+  expandCover,
+  isNew = false,
+  poster,
+  publication,
+  src,
+  title
+}) => {
+  const { audioPublication, setAudioPublication } = usePublicationAudioStore();
+  const [newPreviewUri, setNewPreviewUri] = useState<null | string>(null);
   const [playing, setPlaying] = useState(false);
-  const audioPublication = usePublicationStore((state) => state.audioPublication);
-  const setAudioPublication = usePublicationStore((state) => state.setAudioPublication);
   const playerRef = useRef<APITypes>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -46,73 +47,83 @@ const Audio: FC<AudioProps> = ({ src, isNew = false, publication, txn, expandCov
     if (!playerRef.current) {
       return;
     }
-    if (playerRef.current?.plyr.paused && !playing) {
-      setPlaying(true);
-      Mixpanel.track(PUBLICATION.ATTACHMENT.AUDIO.PLAY);
 
-      return playerRef.current?.plyr.play();
+    const player = playerRef.current.plyr;
+    if (player.paused && !playing) {
+      setPlaying(true);
+      Leafwatch.track(PUBLICATION.ATTACHMENT.AUDIO.PLAY, {
+        publication_id: publication?.id
+      });
+      player.play();
+    } else {
+      setPlaying(false);
+      player.pause();
+      Leafwatch.track(PUBLICATION.ATTACHMENT.AUDIO.PAUSE, {
+        publication_id: publication?.id
+      });
     }
-    setPlaying(false);
-    playerRef.current?.plyr.pause();
-    Mixpanel.track(PUBLICATION.ATTACHMENT.AUDIO.PAUSE);
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setAudioPublication({ ...audioPublication, [e.target.name]: e.target.value });
+    setAudioPublication({
+      ...audioPublication,
+      [e.target.name]: e.target.value
+    });
   };
 
   return (
     <div
-      className="bg-brand-500 overflow-hidden rounded-xl border px-3.5 pt-3.5 dark:border-gray-700 md:p-0"
-      data-testid={`attachment-audio-${src}`}
+      className="overflow-hidden rounded-xl border bg-gray-500 p-0 dark:border-gray-700"
+      onClick={stopEventPropagation}
+      style={{ backgroundImage: `url(${isNew ? newPreviewUri : poster})` }}
     >
-      <div className="flex flex-wrap md:flex-nowrap md:space-x-2">
+      <div className="flex flex-wrap p-5 backdrop-blur-2xl backdrop-brightness-50 md:flex-nowrap md:space-x-2 md:p-0">
         <CoverImage
-          isNew={isNew && !txn}
-          cover={isNew ? txn?.cover ?? audioPublication.cover : getThumbnailUrl(publication?.metadata)}
-          setCover={(url, mimeType) =>
-            setAudioPublication({ ...audioPublication, cover: url, coverMimeType: mimeType })
-          }
-          imageRef={imageRef}
+          cover={isNew ? (newPreviewUri as string) : poster}
           expandCover={expandCover}
+          imageRef={imageRef}
+          isNew={isNew}
+          setCover={(previewUri, cover, mimeType) => {
+            setNewPreviewUri(previewUri);
+            setAudioPublication({ ...audioPublication, cover, mimeType });
+          }}
         />
         <div className="flex w-full flex-col justify-between truncate py-1 md:px-3">
           <div className="mt-3 flex justify-between md:mt-7">
             <div className="flex w-full items-center space-x-2.5 truncate">
-              <button type="button" onClick={handlePlayPause}>
+              <button onClick={handlePlayPause} type="button">
                 {playing && !playerRef.current?.plyr.paused ? (
-                  <PauseIcon className="h-[50px] w-[50px] text-gray-100 hover:text-white" />
+                  <PauseIcon className="size-[50px] text-gray-100 hover:text-white" />
                 ) : (
-                  <PlayIcon className="h-[50px] w-[50px] text-gray-100 hover:text-white" />
+                  <PlayIcon className="size-[50px] text-gray-100 hover:text-white" />
                 )}
               </button>
               <div className="w-full truncate pr-3">
-                {isNew && !txn ? (
-                  <div className="flex w-full flex-col">
+                {isNew ? (
+                  <div className="flex w-full flex-col space-y-1">
                     <input
-                      className="border-none bg-transparent text-lg text-white placeholder-white outline-none"
-                      placeholder={t`Add title`}
-                      name="title"
-                      value={audioPublication.title}
                       autoComplete="off"
+                      className="border-none bg-transparent p-0 text-lg text-white placeholder:text-white focus:ring-0"
+                      name="title"
                       onChange={handleChange}
+                      placeholder="Add title"
+                      value={audioPublication.title}
                     />
                     <input
-                      className="border-none bg-transparent text-white/70 placeholder-white/70 outline-none"
-                      placeholder={t`Add author`}
-                      name="author"
-                      value={audioPublication.author}
-                      onChange={handleChange}
                       autoComplete="off"
+                      className="border-none bg-transparent p-0 text-white/70 placeholder:text-white/70 focus:ring-0"
+                      name="artist"
+                      onChange={handleChange}
+                      placeholder="Add artist"
+                      value={audioPublication.artist}
                     />
                   </div>
                 ) : (
                   <>
-                    <h5 className="truncate text-lg text-white">{publication?.metadata.name ?? txn.title}</h5>
+                    <h5 className="truncate text-lg text-white">{title}</h5>
                     <h6 className="truncate text-white/70">
-                      {txn?.author ??
-                        getPublicationAttribute(publication?.metadata.attributes, 'author') ??
-                        publication?.profile.name}
+                      {artist ||
+                        getProfile(publication?.by as Profile).displayName}
                     </h6>
                   </>
                 )}
@@ -120,7 +131,7 @@ const Audio: FC<AudioProps> = ({ src, isNew = false, publication, txn, expandCov
             </div>
           </div>
           <div className="md:pb-3">
-            <Player src={src} playerRef={playerRef} />
+            <Player playerRef={playerRef} src={src} />
           </div>
         </div>
       </div>

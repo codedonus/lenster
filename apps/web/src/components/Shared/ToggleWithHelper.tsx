@@ -1,28 +1,33 @@
-import type { FC, ReactNode } from 'react';
-import { Toggle } from 'ui';
+import { H6, Toggle } from "@hey/ui";
+import type { FC, ReactNode } from "react";
 
 interface ToggleWithHelperProps {
+  description: ReactNode;
+  disabled?: boolean;
+  heading?: ReactNode;
+  icon?: ReactNode;
   on: boolean;
   setOn: (on: boolean) => void;
-  heading?: ReactNode;
-  description: ReactNode;
-  icon?: ReactNode;
 }
 
-const ToggleWithHelper: FC<ToggleWithHelperProps> = ({ on, setOn, heading, description, icon }) => {
-  const hasHeadingAndIcon = heading && icon;
+const ToggleWithHelper: FC<ToggleWithHelperProps> = ({
+  description,
+  disabled = false,
+  heading,
+  icon,
+  on,
+  setOn
+}) => {
   return (
-    <div className="space-y-2">
-      {hasHeadingAndIcon && (
-        <div className="flex items-center space-x-2">
-          <span className="text-brand-500">{icon}</span>
-          <span>{heading}</span>
+    <div className="flex items-center justify-between">
+      <div className="flex items-start space-x-3">
+        {icon && <span className="mt-1">{icon}</span>}
+        <div>
+          {heading && <b>{heading}</b>}
+          <H6 className="ld-text-gray-500 font-normal">{description}</H6>
         </div>
-      )}
-      <div className="flex items-center space-x-2">
-        <Toggle on={on} setOn={setOn} />
-        <div className="lt-text-gray-500 text-sm font-bold">{description}</div>
       </div>
+      <Toggle disabled={disabled} on={on} setOn={setOn} />
     </div>
   );
 };

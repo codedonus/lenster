@@ -1,82 +1,82 @@
-import MenuTransition from '@components/Shared/MenuTransition';
-import { Menu } from '@headlessui/react';
-import { AdjustmentsIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import clsx from 'clsx';
-import type { ChangeEvent } from 'react';
-import { useProfileFeedStore } from 'src/store/profile-feed';
-import { Tooltip } from 'ui';
-import { Checkbox } from 'ui/Checkbox';
+import MenuTransition from "@components/Shared/MenuTransition";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { AdjustmentsVerticalIcon } from "@heroicons/react/24/outline";
+import { Checkbox, Tooltip } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import type { ChangeEvent } from "react";
+import { useProfileFeedStore } from "src/store/non-persisted/useProfileFeedStore";
 
 const MediaFilter = () => {
-  const mediaFeedFilters = useProfileFeedStore((state) => state.mediaFeedFilters);
-  const setMediaFeedFilters = useProfileFeedStore((state) => state.setMediaFeedFilters);
+  const { mediaFeedFilters, setMediaFeedFilters } = useProfileFeedStore();
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setMediaFeedFilters({ ...mediaFeedFilters, [e.target.name]: e.target.checked });
+    setMediaFeedFilters({
+      ...mediaFeedFilters,
+      [e.target.name]: e.target.checked
+    });
   };
 
   return (
     <Menu as="div" className="relative">
-      <Menu.Button className="rounded-md hover:bg-gray-300 hover:bg-opacity-20">
-        <Tooltip placement="top" content="Filter">
-          <AdjustmentsIcon className="text-brand h-5 w-5" />
+      <MenuButton className="rounded-md hover:bg-gray-300/20">
+        <Tooltip content="Filter" placement="top">
+          <AdjustmentsVerticalIcon className="size-5" />
         </Tooltip>
-      </Menu.Button>
+      </MenuButton>
       <MenuTransition>
-        <Menu.Items
-          static
+        <MenuItems
           className="absolute right-0 z-[5] mt-1 rounded-xl border bg-white py-1 shadow-sm focus:outline-none dark:border-gray-700 dark:bg-gray-900"
+          static
         >
-          <Menu.Item
+          <MenuItem
             as="label"
-            className={({ active }) =>
-              clsx(
-                { 'dropdown-active': active },
-                'menu-item flex cursor-pointer items-center gap-1 space-x-1 rounded-lg'
+            className={({ focus }) =>
+              cn(
+                { "dropdown-active": focus },
+                "menu-item flex cursor-pointer items-center gap-1 space-x-1 rounded-lg"
               )
             }
           >
             <Checkbox
-              onChange={handleChange}
               checked={mediaFeedFilters.images}
+              label="Images"
               name="images"
-              label={t`Images`}
+              onChange={handleChange}
             />
-          </Menu.Item>
-          <Menu.Item
+          </MenuItem>
+          <MenuItem
             as="label"
-            className={({ active }) =>
-              clsx(
-                { 'dropdown-active': active },
-                'menu-item flex cursor-pointer items-center gap-1 space-x-1 rounded-lg'
+            className={({ focus }) =>
+              cn(
+                { "dropdown-active": focus },
+                "menu-item flex cursor-pointer items-center gap-1 space-x-1 rounded-lg"
               )
             }
           >
             <Checkbox
-              onChange={handleChange}
               checked={mediaFeedFilters.video}
+              label="Video"
               name="video"
-              label={t`Video`}
+              onChange={handleChange}
             />
-          </Menu.Item>
-          <Menu.Item
+          </MenuItem>
+          <MenuItem
             as="label"
-            className={({ active }) =>
-              clsx(
-                { 'dropdown-active': active },
-                'menu-item flex cursor-pointer items-center gap-1 space-x-1 rounded-lg'
+            className={({ focus }) =>
+              cn(
+                { "dropdown-active": focus },
+                "menu-item flex cursor-pointer items-center gap-1 space-x-1 rounded-lg"
               )
             }
           >
             <Checkbox
-              onChange={handleChange}
               checked={mediaFeedFilters.audio}
+              label="Audio"
               name="audio"
-              label={t`Audio`}
+              onChange={handleChange}
             />
-          </Menu.Item>
-        </Menu.Items>
+          </MenuItem>
+        </MenuItems>
       </MenuTransition>
     </Menu>
   );

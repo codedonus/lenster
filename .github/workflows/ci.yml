@@ -1,68 +1,59 @@
 name: CI
 
 on:
-  pull_request_target:
+  push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
-      - ".github/CODEOWNERS"
+  pull_request:
+    types: [opened, synchronize]
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: CI
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 🚪
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js, pnpm and dependencies 🌸
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Typecheck 🔡
+        run: pnpm typecheck
+
+  biome:
+    name: Biome
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🚪
-        uses: actions/checkout@v3
-
-      - name: Setup node 🍀
-        uses: actions/setup-node@v3
+        uses: actions/checkout@v4
         with:
-          node-version-file: '.nvmrc'
+          fetch-depth: 0
 
-      - name: Get yarn cache directory path 📁
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Setup Node.js, pnpm and dependencies 🌸
+        uses: ./.github/actions/setup-pnpm
 
-      - name: Cache 📦
-        id: cache
-        uses: actions/cache@v3
+      - name: Biome 🪩
+        run: pnpm biome:check
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🚪
+        uses: actions/checkout@v4
         with:
-          path: |
-            ~/.cache/ms-playwright
-            ${{ github.workspace }}/node_modules/playwright
-            ${{ github.workspace }}/node_modules/.cache/turbo
-            ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: cache-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: cache-
+          fetch-depth: 0
 
-      - name: Install dependencies 📦
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
-
-      - name: Install Playwright browsers 🕹️
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: yarn playwright install
-
-      - name: GraphQL Codegen 🕸
-        run: yarn codegen
-
-      - name: Typecheck 🔡
-        run: yarn typecheck
-
-      - name: Lint 🪩
-        run: yarn lint
-
-      - name: Prettier ✨
-        run: yarn prettier
+      - name: Setup Node.js, pnpm and dependencies 🌸
+        uses: ./.github/actions/setup-pnpm
 
       - name: Build 🎁
-        run: yarn build
-
-      - name: Run Tests 🧪
-        run: yarn test:e2e
+        run: pnpm build

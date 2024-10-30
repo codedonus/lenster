@@ -1,32 +1,26 @@
-import { SwitchHorizontalIcon } from '@heroicons/react/outline';
-import { Trans } from '@lingui/macro';
-import clsx from 'clsx';
-import type { FC } from 'react';
-import React from 'react';
-import { useGlobalModalStateStore } from 'src/store/modals';
+import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
+import cn from "@hey/ui/cn";
+import type { FC } from "react";
+import { useGlobalModalStateStore } from "src/store/non-persisted/useGlobalModalStateStore";
 
 interface SwitchProfileProps {
   className?: string;
 }
 
-const SwitchProfile: FC<SwitchProfileProps> = ({ className = '' }) => {
-  const setShowProfileSwitchModal = useGlobalModalStateStore((state) => state.setShowProfileSwitchModal);
+const SwitchProfile: FC<SwitchProfileProps> = ({ className = "" }) => {
+  const { setShowProfileSwitchModal } = useGlobalModalStateStore();
 
   return (
     <button
-      type="button"
-      className={clsx(
-        'flex w-full px-4 py-1.5 text-sm text-gray-700 focus:outline-none dark:text-gray-200',
+      className={cn(
+        "flex w-full items-center space-x-2 px-2 py-1.5 text-left text-gray-700 text-sm focus:outline-none dark:text-gray-200",
         className
       )}
       onClick={() => setShowProfileSwitchModal(true)}
+      type="button"
     >
-      <div className="flex items-center space-x-2">
-        <SwitchHorizontalIcon className="h-4 w-4" />
-        <span>
-          <Trans>Switch Profile</Trans>
-        </span>
-      </div>
+      <ArrowsRightLeftIcon className="size-4" />
+      <span>Switch profile</span>
     </button>
   );
 };

@@ -1,42 +1,36 @@
-import GetModuleIcon from '@components/utils/GetModuleIcon';
-import { CashIcon } from '@heroicons/react/outline';
-import { getModule } from '@lib/getModule';
-import { t } from '@lingui/macro';
-import { motion } from 'framer-motion';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useCollectModuleStore } from 'src/store/collect-module';
-import { Modal, Tooltip } from 'ui';
-
-import CollectForm from './CollectForm';
+import { ShoppingBagIcon } from "@heroicons/react/24/outline";
+import { Modal, Tooltip } from "@hey/ui";
+import type { FC } from "react";
+import { useState } from "react";
+import { useCollectModuleStore } from "src/store/non-persisted/publication/useCollectModuleStore";
+import { usePublicationLicenseStore } from "src/store/non-persisted/publication/usePublicationLicenseStore";
+import CollectForm from "./CollectForm";
 
 const CollectSettings: FC = () => {
-  const selectedCollectModule = useCollectModuleStore((state) => state.selectedCollectModule);
-  const reset = useCollectModuleStore((state) => state.reset);
+  const { reset } = useCollectModuleStore((state) => state);
+  const { setLicense } = usePublicationLicenseStore();
   const [showModal, setShowModal] = useState(false);
 
   return (
     <>
-      <Tooltip placement="top" content={getModule(selectedCollectModule).name}>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          type="button"
+      <Tooltip content="Collect" placement="top">
+        <button
+          aria-label="Collect Module"
+          className="rounded-full outline-offset-8"
           onClick={() => setShowModal(!showModal)}
-          aria-label="Choose Collect Module"
+          type="button"
         >
-          <div className="text-brand">
-            <GetModuleIcon module={selectedCollectModule} size={5} />
-          </div>
-        </motion.button>
+          <ShoppingBagIcon className="size-5" />
+        </button>
       </Tooltip>
       <Modal
-        title={t`Collect settings`}
-        icon={<CashIcon className="text-brand h-5 w-5" />}
-        show={showModal}
         onClose={() => {
           setShowModal(false);
+          setLicense(null);
           reset();
         }}
+        show={showModal}
+        title="Collect Settings"
       >
         <CollectForm setShowModal={setShowModal} />
       </Modal>

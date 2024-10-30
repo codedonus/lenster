@@ -1,13 +1,13 @@
-import { UsersIcon } from '@heroicons/react/outline';
-import { t, Trans } from '@lingui/macro';
-import type { Profile } from 'lens';
-import humanize from 'lib/humanize';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { Modal } from 'ui';
-
-import Followers from './Followers';
-import Following from './Following';
+import Followers from "@components/Shared/Modal/Followers";
+import Following from "@components/Shared/Modal/Following";
+import { Leafwatch } from "@helpers/leafwatch";
+import { PROFILE } from "@hey/data/tracking";
+import getProfile from "@hey/helpers/getProfile";
+import humanize from "@hey/helpers/humanize";
+import type { Profile } from "@hey/lens";
+import { H4, Modal } from "@hey/ui";
+import plur from "plur";
+import { type FC, useState } from "react";
 
 interface FolloweringsProps {
   profile: Profile;
@@ -16,46 +16,47 @@ interface FolloweringsProps {
 const Followerings: FC<FolloweringsProps> = ({ profile }) => {
   const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const { followers, following } = profile.stats;
 
   return (
     <div className="flex gap-8">
       <button
+        className="text-left outline-offset-4"
+        onClick={() => setShowFollowingModal(true)}
         type="button"
-        className="text-left"
-        onClick={() => setShowFollowingModal(!showFollowingModal)}
-        data-testid="profile-followings"
       >
-        <div className="text-xl">{humanize(profile?.stats?.totalFollowing)}</div>
-        <div className="lt-text-gray-500">
-          <Trans>Following</Trans>
-        </div>
+        <H4>{humanize(following)}</H4>
+        <div className="ld-text-gray-500">Following</div>
       </button>
       <button
+        className="text-left outline-offset-4"
+        onClick={() => setShowFollowersModal(true)}
         type="button"
-        className="text-left"
-        onClick={() => setShowFollowersModal(!showFollowersModal)}
-        data-testid="profile-followers"
       >
-        <div className="text-xl">{humanize(profile?.stats?.totalFollowers)}</div>
-        <div className="lt-text-gray-500">
-          <Trans>Followers</Trans>
-        </div>
+        <H4>{humanize(followers)}</H4>
+        <div className="ld-text-gray-500">{plur("Follower", followers)}</div>
       </button>
       <Modal
-        title={t`Following`}
-        icon={<UsersIcon className="text-brand h-5 w-5" />}
+        onClose={() => {
+          Leafwatch.track(PROFILE.OPEN_FOLLOWING);
+          setShowFollowingModal(false);
+        }}
         show={showFollowingModal}
-        onClose={() => setShowFollowingModal(false)}
+        title="Following"
+        size="md"
       >
-        <Following profile={profile} />
+        <Following handle={getProfile(profile).slug} profileId={profile.id} />
       </Modal>
       <Modal
-        title={t`Followers`}
-        icon={<UsersIcon className="text-brand h-5 w-5" />}
+        onClose={() => {
+          Leafwatch.track(PROFILE.OPEN_FOLLOWERS);
+          setShowFollowersModal(false);
+        }}
         show={showFollowersModal}
-        onClose={() => setShowFollowersModal(false)}
+        title="Followers"
+        size="md"
       >
-        <Followers profile={profile} />
+        <Followers handle={getProfile(profile).slug} profileId={profile.id} />
       </Modal>
     </div>
   );

@@ -1,4 +1,13 @@
 User-agent: *
-Disallow: /_next/*
+Allow: /*
+Disallow: /settings/*
+Disallow: /staff/*
+Disallow: /mod
+Disallow: /bookmarks
+Disallow: /notifications
+Disallow: /search?q=
 
-Sitemap: https://lenster.xyz/sitemap.xml
+User-agent: nsa
+Disallow: /
+
+Sitemap: https://api.hey.xyz/sitemap/sitemap.xml

@@ -1,80 +1,153 @@
-<div align="center">
-    <img src="https://user-images.githubusercontent.com/69431456/183576577-2486db3f-f0a9-4252-b283-a8322e5eb8b6.png" alt="Lenster Logo">
-    <h1>Lenster</h1>
-    <strong>Decentralized, and permissionless social media app 🌿</strong>
-</div>
-<br>
-<div align="center">
-    <a href="https://lenster.xyz/u/yoginth.lens">
-        <img src="https://lens-badge.vercel.app/api/badge/yoginth.lens" alt="Lens">
-    </a>
-    <a href="https://vercel.com/lenster?utm_source=Lenster&utm_campaign=oss">
-        <img src="https://therealsujitk-vercel-badge.vercel.app/?app=lenster" alt="Vercel">
-    </a>
-    <a href="https://deepsource.io/gh/lensterxyz/lenster">
-        <img src="https://deepsource.io/gh/lensterxyz/lenster.svg/?label=active+issues&show_trend=true" alt="GitHub actions">
-    </a>
-    <a href="https://www.gitpoap.io/gh/lensterxyz/lenster">
-        <img src="https://public-api.gitpoap.io/v1/repo/lensterxyz/lenster/badge" alt="Gitpoap">
-    </a>
-    <a href="https://translate.lenster.xyz">
-        <img src="https://badges.crowdin.net/lenster/localized.svg" alt="Crowdin">
-    </a>
-    <a href="https://status.lenster.xyz">
-        <img height="20px" src="https://betteruptime.com/status-badges/v1/monitor/dfaw.svg" alt="Uptime">
-    </a>
-    <a href="https://lenster.checklyhq.com">
-        <img src="https://api.checklyhq.com/v1/badges/checks/4c205fee-8666-4dc8-bc92-077084ef9643?style=flat&theme=default&responseTime=true" alt="Checkly">
-    </a>
-    <a href="https://github.com/lensterxyz/lenster/stargazers">
-        <img src="https://img.shields.io/github/stars/lensterxyz/lenster" alt="Stargazers">
-    </a>
-    <a href="https://github.com/lensterxyz/lenster/blob/main/LICENSE">
-        <img src="https://badgen.net/github/license/lensterxyz/lenster" alt="License">
-    </a>
-    <a href="https://lenster.xyz/discord">
-        <img src="https://img.shields.io/discord/953679040722665512.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2" alt="Discord">
-    </a>
-</div>
-<div align="center">
-    <br>
-    <a href="https://lenster.xyz"><b>lenster.xyz »</b></a>
-    <br><br>
-    <a href="https://lenster.xyz/discord"><b>Discord</b></a>
-    •
-    <a href="https://github.com/lensterxyz/lenster/issues/new"><b>Issues</b></a>
-</div>
+# Hey Monorepo
 
-## 🌿 About Lenster
+## Requirements
 
-Lenster is a cutting-edge social media application that leverages the power of [Lens Protocol](http://lens.xyz) 🌿 to create a decentralized and permissionless platform for users to interact, share, and engage with one another. With a focus on privacy, security, and user control, Lenster aims to revolutionize the social media landscape by providing a more transparent and equitable digital environment for its users.
+- [Node.js](https://nodejs.org/en/download/) (v18 or higher) - The backbone of our project, make sure you have this installed.
+- [pnpm](https://pnpm.io/installation) - Our trusty package manager, because who doesn't love faster installs?
+- [Postgres App](https://postgresapp.com/) - Our database of choice, because data needs a cozy home.
+- [Redis](https://redis.io/download) - The speedy in-memory data store, for when you need things done in a flash.
 
-## 📦 Environments
+## Installation
 
-| Name            | Link                                |
-| --------------- | ----------------------------------- |
-| Mainnet         | https://lenster.xyz                 |
-| Testnet         | https://testnet.lenster.xyz         |
-| Staging         | https://staging.lenster.xyz         |
-| Sandbox         | https://sandbox.lenster.xyz         |
-| Staging Sandbox | https://staging-sandbox.lenster.xyz |
+We harness the power of [pnpm workspaces](https://pnpm.io/workspaces) to keep our monorepo running smoother than a freshly buttered pancake.
 
-## ✅ Community
+### Clone the repository
 
-For a place to have open discussions on features, voice your ideas, or get help with general questions please visit our community at [Discord](https://lenster.xyz/discord).
+Clone the Hey monorepo to your local machine:
 
-## 📊 Repo Activity
+```bash
+git clone https://github.com/heyxyz/hey.git
+```
 
-<img width="100%" src="https://repobeats.axiom.co/api/embed/af135d3dfdb3605cc3db676472ca174173ac2fb7.svg" alt="Repobeats analytics" />
+### Install NVM (Node Version Manager) and pnpm
 
-## 💕 Contributors
+Rocking a macOS? You can grab both with Homebrew, like a true brew master:
 
-We love contributors! Feel free to contribute to this project but please read the [Contributing Guidelines](CONTRIBUTING.md) before opening an issue or PR so you understand the branching strategy and local development environment.
+```bash
+brew install nvm pnpm
+```
 
-<a href="https://github.com/lensterxyz/lenster/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=lensterxyz/lenster" />
-</a>
+### Install Node.js
 
-## ⚖️ License
+Use `nvm` to summon the magical version of Node.js you need:
 
-Lenster is open-sourced software licensed under the © [GPLv3](LICENSE).
+```bash
+nvm install
+```
+
+### Install dependencies
+
+Teleport yourself to the root of the repository and let pnpm sprinkle its dependency magic:
+
+```bash
+pnpm install
+```
+
+### Create a `.env` file
+
+Channel your inner wizard and conjure up a `.env` file from the `.env.example` template for every package and app that needs it. Don't forget to sprinkle in the necessary environment variables!
+
+```bash
+cp .env.example .env
+```
+
+Don't forget to play copycat and repeat this `.env` file creation for every package and app that needs it. Consistency is key!
+
+### Start the application
+
+When all the stars align and everything is in place, kick off the application in development mode:
+
+```bash
+pnpm dev
+```
+
+## Build and Test
+
+### Build the application
+
+Ready to build the application? Just run this command:
+
+```bash
+pnpm build
+```
+
+### Test the application
+
+Want to run tests while you're developing? Here's how you do it:
+
+```bash
+pnpm test
+```
+
+## Periodic Tasks
+
+### Remove unused exports and helpers
+
+We use `ts-prune` to hunt down and eliminate unused exports and helpers lurking in our codebase. Just a heads-up: you'll need to run this task manually for each package and app. Happy pruning!
+
+```bash
+cd apps/web; npx ts-prune -i generated.ts
+```
+
+### Update dependencies
+
+Time to give our dependencies a makeover! We rely on the magical powers of `pnpm` to keep everything up-to-date and looking sharp.
+
+```bash
+script/clean-branches
+script/update-dependencies
+```
+
+### Update lock file
+
+We trust `pnpm` to keep our lock file fresh and fabulous!
+
+```bash
+script/clean-branches
+script/update-lock-file
+```
+
+## Other tools you might like
+
+### Ripgrep
+
+We use [Ripgrep](https://github.com/BurntSushi/ripgrep) to search for text in the codebase. It's like `grep` and `ag` had a baby, and that baby grew up to be a speed demon!
+
+Install it via Homebrew:
+
+```bash
+brew install ripgrep
+```
+
+Search for text in the codebase:
+
+```bash
+rg "const Verified"
+```
+
+### Bundle Analyzer
+
+In `apps/web`, we've got a bundle analyzer that spills the beans on the size and contents of our production bundles. It's like having X-ray vision for your code!
+
+To generate this output, run:
+
+```bash
+cd apps/web
+ANALYZE=true pnpm build
+```
+
+Fire up this command to build the `apps/web` project and watch as three browser windows magically pop open, each showcasing bundle details for node, edge, and client bundles. The client bundle is the superhero for page performance, while all bundles play a vital role in development and build performance.
+
+## Code of Conduct
+
+We kindly ask all contributors and team members to follow our [Code of Conduct](./CODE_OF_CONDUCT.md). Think of it as our community's golden rulebook - play nice and keep the good vibes flowing!
+
+## License
+
+This project is open-sourced under the **AGPL-3.0** license. For all the nitty-gritty details, check out the [LICENSE](./LICENSE) file. It's a real page-turner!
+
+## P.S
+
+We 💖 you to the moon and back! Your support is like a never-ending supply of coffee for our code. Thank you for making Hey the most awesome place in the universe!
+
+🌸

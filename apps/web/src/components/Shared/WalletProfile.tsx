@@ -1,45 +1,58 @@
-import { ExternalLinkIcon } from '@heroicons/react/outline';
-import { POLYGONSCAN_URL } from 'data/constants';
-import type { Wallet } from 'lens';
-import formatAddress from 'lib/formatAddress';
-import getStampFyiURL from 'lib/getStampFyiURL';
-import imageProxy from 'lib/imageProxy';
-import type { FC } from 'react';
-import { Image } from 'ui';
-
-import Slug from './Slug';
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
+import { POLYGONSCAN_URL } from "@hey/data/constants";
+import formatAddress from "@hey/helpers/formatAddress";
+import getStampFyiURL from "@hey/helpers/getStampFyiURL";
+import imageKit from "@hey/helpers/imageKit";
+import { Image } from "@hey/ui";
+import Link from "next/link";
+import type { FC, SyntheticEvent } from "react";
+import useEnsName from "src/hooks/useEnsName";
+import type { Address } from "viem";
+import Slug from "./Slug";
 
 interface WalletProfileProps {
-  wallet: Wallet;
+  address: Address;
 }
 
-const WalletProfile: FC<WalletProfileProps> = ({ wallet }) => {
+const WalletProfile: FC<WalletProfileProps> = ({ address }) => {
+  const { ens, loading } = useEnsName({
+    address,
+    enabled: Boolean(address)
+  });
+
+  const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    target.src = getStampFyiURL(address);
+  };
+
+  const displayName = loading
+    ? formatAddress(address)
+    : ens || formatAddress(address);
+
   return (
     <div className="flex items-center justify-between">
-      <a
-        href={`${POLYGONSCAN_URL}/address/${wallet?.address}`}
+      <Link
         className="flex items-center space-x-3"
-        target="_blank"
+        href={`${POLYGONSCAN_URL}/address/${address}`}
         rel="noreferrer noopener"
+        target="_blank"
       >
         <Image
-          onError={({ currentTarget }) => {
-            currentTarget.src = getStampFyiURL(wallet?.address);
-          }}
-          src={imageProxy(getStampFyiURL(wallet?.address))}
-          className="h-10 w-10 rounded-full border bg-gray-200"
+          alt={address}
+          className="size-10 rounded-full border bg-gray-200"
           height={40}
+          onError={handleImageError}
+          src={imageKit(getStampFyiURL(address))}
           width={40}
-          alt={wallet?.address}
         />
         <div>
           <div className="flex items-center gap-1.5">
-            <div>{formatAddress(wallet?.address)}</div>
-            <ExternalLinkIcon className="h-4 w-4" />
+            <div>{displayName}</div>
+            <ArrowTopRightOnSquareIcon className="size-4" />
           </div>
-          <Slug className="text-sm" slug={formatAddress(wallet?.address)} />
+          <Slug className="text-sm" slug={formatAddress(address)} />
         </div>
-      </a>
+      </Link>
     </div>
   );
 };

@@ -1,51 +1,72 @@
-import { useDisconnectXmtp } from '@components/utils/hooks/useXmtpClient';
-import { LogoutIcon } from '@heroicons/react/outline';
-import { Mixpanel } from '@lib/mixpanel';
-import resetAuthData from '@lib/resetAuthData';
-import { Trans } from '@lingui/macro';
-import clsx from 'clsx';
-import type { FC } from 'react';
-import React from 'react';
-import { useAppPersistStore, useAppStore } from 'src/store/app';
-import { PROFILE } from 'src/tracking';
-import { useDisconnect } from 'wagmi';
+import errorToast from "@helpers/errorToast";
+import getCurrentSession from "@helpers/getCurrentSession";
+import { Leafwatch } from "@helpers/leafwatch";
+import { ArrowRightStartOnRectangleIcon } from "@heroicons/react/24/outline";
+import { AUTH } from "@hey/data/tracking";
+import { useRevokeAuthenticationMutation } from "@hey/lens";
+import cn from "@hey/ui/cn";
+import { useRouter } from "next/router";
+import type { FC } from "react";
+import { useState } from "react";
+import { usePreferencesStore } from "src/store/non-persisted/usePreferencesStore";
+import { signOut } from "src/store/persisted/useAuthStore";
+import { useDisconnect } from "wagmi";
 
 interface LogoutProps {
-  onClick?: () => void;
   className?: string;
+  onClick?: () => void;
 }
 
-const Logout: FC<LogoutProps> = ({ onClick, className = '' }) => {
+const Logout: FC<LogoutProps> = ({ className = "", onClick }) => {
+  const { reload } = useRouter();
+  const { resetPreferences } = usePreferencesStore();
+  const [revoking, setRevoking] = useState(false);
+
   const { disconnect } = useDisconnect();
-  const disconnectXmtp = useDisconnectXmtp();
+  const { authorizationId } = getCurrentSession();
 
-  const setCurrentProfile = useAppStore((state) => state.setCurrentProfile);
-  const setProfileId = useAppPersistStore((state) => state.setProfileId);
+  const onError = (error: any) => {
+    setRevoking(false);
+    errorToast(error);
+  };
 
-  const logout = () => {
-    Mixpanel.track(PROFILE.LOGOUT);
-    disconnectXmtp();
-    setCurrentProfile(null);
-    setProfileId(null);
-    resetAuthData();
-    disconnect?.();
+  const [revokeAuthentication] = useRevokeAuthenticationMutation({ onError });
+
+  const logout = async () => {
+    try {
+      setRevoking(true);
+      if (authorizationId) {
+        await revokeAuthentication({
+          variables: { request: { authorizationId } }
+        });
+      }
+      Leafwatch.track(AUTH.LOGOUT);
+      resetPreferences();
+      signOut();
+      disconnect?.();
+      reload();
+    } catch (error) {
+      onError(error);
+    } finally {
+      setRevoking(false);
+    }
   };
 
   return (
     <button
-      type="button"
-      onClick={() => {
-        logout();
+      className={cn(
+        "flex w-full items-center space-x-1.5 px-2 py-1.5 text-left text-gray-700 text-sm dark:text-gray-200",
+        className
+      )}
+      disabled={revoking}
+      onClick={async () => {
+        await logout();
         onClick?.();
       }}
-      className={clsx('flex w-full px-4 py-1.5 text-sm text-gray-700 dark:text-gray-200', className)}
+      type="button"
     >
-      <div className="flex items-center space-x-1.5">
-        <LogoutIcon className="h-4 w-4" />
-        <div>
-          <Trans>Logout</Trans>
-        </div>
-      </div>
+      <ArrowRightStartOnRectangleIcon className="size-4" />
+      <div>Logout</div>
     </button>
   );
 };

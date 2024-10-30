@@ -1,219 +1,253 @@
-import { StarIcon, XIcon } from '@heroicons/react/outline';
-import { Mixpanel } from '@lib/mixpanel';
-import onError from '@lib/onError';
-import splitSignature from '@lib/splitSignature';
-import { t, Trans } from '@lingui/macro';
-import { LensHub } from 'abis';
-import { ADDRESS_REGEX, DEFAULT_COLLECT_TOKEN, LENSHUB_PROXY } from 'data/constants';
-import Errors from 'data/errors';
-import type { Erc20 } from 'lens';
+import errorToast from "@helpers/errorToast";
+import { Leafwatch } from "@helpers/leafwatch";
+import { StarIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { LensHub } from "@hey/abis";
 import {
-  useBroadcastMutation,
-  useCreateSetFollowModuleTypedDataMutation,
-  useEnabledCurrencyModulesWithProfileQuery
-} from 'lens';
-import getSignature from 'lib/getSignature';
-import getTokenImage from 'lib/getTokenImage';
-import type { FC } from 'react';
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { useAppStore } from 'src/store/app';
-import { SETTINGS } from 'src/tracking';
-import { Button, Card, Form, Input, Spinner, useZodForm } from 'ui';
-import { useContractWrite, useSignTypedData } from 'wagmi';
-import { object, string } from 'zod';
+  ADDRESS_PLACEHOLDER,
+  DEFAULT_COLLECT_TOKEN,
+  LENS_HUB,
+  STATIC_IMAGES_URL
+} from "@hey/data/constants";
+import { Errors } from "@hey/data/errors";
+import { Regex } from "@hey/data/regex";
+import { SETTINGS } from "@hey/data/tracking";
+import checkDispatcherPermissions from "@hey/helpers/checkDispatcherPermissions";
+import getSignature from "@hey/helpers/getSignature";
+import {
+  FollowModuleType,
+  useBroadcastOnchainMutation,
+  useCreateSetFollowModuleTypedDataMutation
+} from "@hey/lens";
+import {
+  Button,
+  Card,
+  CardHeader,
+  Form,
+  Input,
+  Select,
+  useZodForm
+} from "@hey/ui";
+import type { FC } from "react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import useHandleWrongNetwork from "src/hooks/useHandleWrongNetwork";
+import { useNonceStore } from "src/store/non-persisted/useNonceStore";
+import { useProfileStatus } from "src/store/non-persisted/useProfileStatus";
+import { useAllowedTokensStore } from "src/store/persisted/useAllowedTokensStore";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import { useSignTypedData, useWriteContract } from "wagmi";
+import { object, string } from "zod";
 
 const newSuperFollowSchema = object({
-  amount: string().min(1, { message: t`Invalid amount` }),
+  amount: string().min(1, { message: "Invalid amount" }),
   recipient: string()
-    .max(42, { message: t`Ethereum address should be within 42 characters` })
-    .regex(ADDRESS_REGEX, { message: t`Invalid Ethereum address` })
+    .max(42, { message: "Ethereum address should be within 42 characters" })
+    .regex(Regex.ethereumAddress, { message: "Invalid Ethereum address" })
 });
 
 const SuperFollow: FC = () => {
-  const userSigNonce = useAppStore((state) => state.userSigNonce);
-  const setUserSigNonce = useAppStore((state) => state.setUserSigNonce);
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const [selectedCurrency, setSelectedCurrency] = useState(DEFAULT_COLLECT_TOKEN);
-  const [selectedCurrencySymbol, setSelectedCurrencySymbol] = useState('WMATIC');
-  const { isLoading: signLoading, signTypedDataAsync } = useSignTypedData({ onError });
-  const { data: currencyData, loading } = useEnabledCurrencyModulesWithProfileQuery({
-    variables: { request: { profileId: currentProfile?.id } },
-    skip: !currentProfile?.id
-  });
-
-  const onCompleted = () => {
-    Mixpanel.track(SETTINGS.ACCOUNT.SET_SUPER_FOLLOW);
-  };
-
-  const { isLoading: writeLoading, write } = useContractWrite({
-    address: LENSHUB_PROXY,
-    abi: LensHub,
-    functionName: 'setFollowModuleWithSig',
-    mode: 'recklesslyUnprepared',
-    onSuccess: onCompleted,
-    onError
-  });
+  const { currentProfile } = useProfileStore();
+  const { allowedTokens } = useAllowedTokensStore();
+  const { isSuspended } = useProfileStatus();
+  const {
+    decrementLensHubOnchainSigNonce,
+    incrementLensHubOnchainSigNonce,
+    lensHubOnchainSigNonce
+  } = useNonceStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState(
+    DEFAULT_COLLECT_TOKEN
+  );
+  const handleWrongNetwork = useHandleWrongNetwork();
+  const { canBroadcast } = checkDispatcherPermissions(currentProfile);
 
   const form = useZodForm({
-    schema: newSuperFollowSchema,
     defaultValues: {
-      recipient: currentProfile?.ownedBy
+      amount:
+        currentProfile?.followModule?.__typename === "FeeFollowModuleSettings"
+          ? currentProfile?.followModule?.amount.value
+          : "",
+      recipient: currentProfile?.ownedBy.address
+    },
+    schema: newSuperFollowSchema
+  });
+
+  const onCompleted = (__typename?: "RelayError" | "RelaySuccess") => {
+    if (__typename === "RelayError") {
+      return;
+    }
+
+    setIsLoading(false);
+    toast.success("Super follow updated");
+    Leafwatch.track(SETTINGS.ACCOUNT.SET_SUPER_FOLLOW);
+  };
+
+  const onError = (error: any) => {
+    setIsLoading(false);
+    errorToast(error);
+  };
+
+  const { signTypedDataAsync } = useSignTypedData({ mutation: { onError } });
+
+  const { writeContractAsync } = useWriteContract({
+    mutation: {
+      onError: (error: Error) => {
+        onError(error);
+        decrementLensHubOnchainSigNonce();
+      },
+      onSuccess: () => {
+        onCompleted();
+        incrementLensHubOnchainSigNonce();
+      }
     }
   });
 
-  const [broadcast, { loading: broadcastLoading }] = useBroadcastMutation({
-    onCompleted
+  const write = async ({ args }: { args: any[] }) => {
+    return await writeContractAsync({
+      abi: LensHub,
+      address: LENS_HUB,
+      args,
+      functionName: "setFollowModule"
+    });
+  };
+
+  const [broadcastOnchain] = useBroadcastOnchainMutation({
+    onCompleted: ({ broadcastOnchain }) =>
+      onCompleted(broadcastOnchain.__typename)
   });
-  const [createSetFollowModuleTypedData, { loading: typedDataLoading }] =
+  const [createSetFollowModuleTypedData] =
     useCreateSetFollowModuleTypedDataMutation({
       onCompleted: async ({ createSetFollowModuleTypedData }) => {
         const { id, typedData } = createSetFollowModuleTypedData;
-        const { profileId, followModule, followModuleInitData, deadline } = typedData.value;
-        const signature = await signTypedDataAsync(getSignature(typedData));
-        const { v, r, s } = splitSignature(signature);
-        const sig = { v, r, s, deadline };
-        const inputStruct = {
-          profileId,
-          followModule,
-          followModuleInitData,
-          sig
-        };
-        setUserSigNonce(userSigNonce + 1);
-        const { data } = await broadcast({ variables: { request: { id, signature } } });
-        if (data?.broadcast.__typename === 'RelayError') {
-          return write?.({ recklesslySetUnpreparedArgs: [inputStruct] });
+        const { followModule, followModuleInitData, profileId } =
+          typedData.value;
+        const args = [profileId, followModule, followModuleInitData];
+        await handleWrongNetwork();
+
+        if (canBroadcast) {
+          const signature = await signTypedDataAsync(getSignature(typedData));
+          const { data } = await broadcastOnchain({
+            variables: { request: { id, signature } }
+          });
+          if (data?.broadcastOnchain.__typename === "RelayError") {
+            return await write({ args });
+          }
+
+          return;
         }
+
+        return await write({ args });
       },
       onError
     });
 
-  const setSuperFollow = async (amount: string | null, recipient: string | null) => {
+  const setSuperFollow = async (
+    amount: null | string,
+    recipient: null | string
+  ) => {
     if (!currentProfile) {
       return toast.error(Errors.SignWallet);
     }
 
+    if (isSuspended) {
+      return toast.error(Errors.Suspended);
+    }
+
     try {
-      await createSetFollowModuleTypedData({
+      setIsLoading(true);
+      return await createSetFollowModuleTypedData({
         variables: {
-          options: { overrideSigNonce: userSigNonce },
+          options: { overrideSigNonce: lensHubOnchainSigNonce },
           request: {
-            profileId: currentProfile?.id,
             followModule: amount
               ? {
                   feeFollowModule: {
-                    amount: {
-                      currency: selectedCurrency,
-                      value: amount
-                    },
+                    amount: { currency: selectedCurrency, value: amount },
                     recipient
                   }
                 }
-              : {
-                  freeFollowModule: true
-                }
+              : { freeFollowModule: true }
           }
         }
       });
-    } catch {}
+    } catch (error) {
+      onError(error);
+    }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <div className="space-y-2 p-5 py-10 text-center">
-          <Spinner size="md" className="mx-auto" />
-          <div>
-            <Trans>Loading super follow settings</Trans>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  const followType = currencyData?.profile?.followModule?.__typename;
+  const followType = currentProfile?.followModule?.type;
 
   return (
     <Card>
+      <CardHeader
+        body="Setting Super follow makes users spend crypto to follow you, and it's
+        a good way to earn it, you can change the amount and currency or
+        disable/enable it anytime."
+        title="Set Super follow"
+      />
       <Form
+        className="m-5 space-y-4"
         form={form}
-        className="space-y-4 p-5"
-        onSubmit={({ amount, recipient }) => {
-          setSuperFollow(amount, recipient);
+        onSubmit={async ({ amount, recipient }) => {
+          await setSuperFollow(amount, recipient);
         }}
       >
-        <div className="text-lg font-bold">
-          <Trans>Set super follow</Trans>
-        </div>
-        <p>
-          <Trans>
-            Setting super follow makes users spend crypto to follow you, and it's a good way to earn it, you
-            can change the amount and currency or disable/enable it anytime.
-          </Trans>
-        </p>
-        <div className="pt-2">
-          <div className="label">
-            <Trans>Select Currency</Trans>
-          </div>
-          <select
-            className="focus:border-brand-500 focus:ring-brand-400 w-full rounded-xl border border-gray-300 bg-white outline-none disabled:bg-gray-500 disabled:bg-opacity-20 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800"
-            onChange={(e) => {
-              const currency = e.target.value.split('-');
-              setSelectedCurrency(currency[0]);
-              setSelectedCurrencySymbol(currency[1]);
-            }}
-          >
-            {currencyData?.enabledModuleCurrencies?.map((currency: Erc20) => (
-              <option key={currency.address} value={`${currency.address}-${currency.symbol}`}>
-                {currency.name}
-              </option>
-            ))}
-          </select>
+        <div>
+          <div className="label">Select currency</div>
+          <Select
+            defaultValue={
+              currentProfile?.followModule?.__typename ===
+              "FeeFollowModuleSettings"
+                ? currentProfile?.followModule?.amount.asset.contract.address
+                : undefined
+            }
+            iconClassName="size-4"
+            onChange={(value) => setSelectedCurrency(value)}
+            options={allowedTokens?.map((token) => ({
+              icon: `${STATIC_IMAGES_URL}/tokens/${token.symbol}.svg`,
+              label: token.name,
+              selected: token.contractAddress === selectedCurrency,
+              value: token.contractAddress
+            }))}
+          />
         </div>
         <Input
-          label={t`Follow amount`}
-          type="number"
-          step="0.0001"
-          min="0"
+          label="Follow amount"
           max="100000"
-          prefix={
-            <img
-              className="h-6 w-6"
-              height={24}
-              width={24}
-              src={getTokenImage(selectedCurrencySymbol)}
-              alt={selectedCurrencySymbol}
-            />
-          }
+          min="0"
           placeholder="5"
-          {...form.register('amount')}
+          step="0.0001"
+          type="number"
+          {...form.register("amount")}
         />
         <Input
-          label={t`Funds recipient`}
+          label="Funds recipient"
+          placeholder={ADDRESS_PLACEHOLDER}
           type="text"
-          placeholder="0x3A5bd...5e3"
-          {...form.register('recipient')}
+          {...form.register("recipient")}
         />
         <div className="ml-auto">
-          <div className="block space-y-2 space-x-0 sm:flex sm:space-y-0 sm:space-x-2">
-            {followType === 'FeeFollowModuleSettings' && (
+          <div className="block space-x-0 space-y-2 sm:flex sm:space-x-2 sm:space-y-0">
+            {followType === FollowModuleType.FeeFollowModule ? (
               <Button
+                disabled={isLoading}
+                icon={<XMarkIcon className="size-4" />}
+                onClick={() => setSuperFollow(null, null)}
+                outline
                 type="button"
                 variant="danger"
-                outline
-                onClick={() => setSuperFollow(null, null)}
-                disabled={typedDataLoading || signLoading || writeLoading || broadcastLoading}
-                icon={<XIcon className="h-4 w-4" />}
               >
-                <Trans>Disable Super follow</Trans>
+                Disable Super follow
               </Button>
-            )}
+            ) : null}
             <Button
+              disabled={isLoading}
+              icon={<StarIcon className="size-4" />}
               type="submit"
-              disabled={typedDataLoading || signLoading || writeLoading || broadcastLoading}
-              icon={<StarIcon className="h-4 w-4" />}
             >
-              {followType === 'FeeFollowModuleSettings' ? t`Update Super follow` : t`Set Super follow`}
+              {followType === FollowModuleType.FeeFollowModule
+                ? "Update Super follow"
+                : "Set Super follow"}
             </Button>
           </div>
         </div>

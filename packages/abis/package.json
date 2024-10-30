@@ -1,19 +1,14 @@
 {
-  "name": "abis",
+  "name": "@hey/abis",
   "version": "0.0.0",
-  "main": "index.ts",
   "private": true,
-  "license": "GPL-3.0",
+  "license": "AGPL-3.0",
+  "main": "index.ts",
   "scripts": {
-    "typecheck": "tsc --pretty --noEmit",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --fix --ext .ts"
-  },
-  "dependencies": {
-    "typescript": "^5.0.2"
+    "typecheck": "tsc --pretty"
   },
   "devDependencies": {
-    "eslint-config-weblint": "*",
-    "tsconfig": "*"
+    "@hey/config": "workspace:*",
+    "typescript": "^5.6.3"
   }
 }

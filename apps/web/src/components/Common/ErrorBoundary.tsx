@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { Component } from 'react';
-import Custom500 from 'src/pages/500';
+import type { ErrorInfo, ReactNode } from "react";
+import { Component } from "react";
+import Custom500 from "src/pages/500";
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -19,8 +19,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return { hasError: true };
   }
 
-  public componentDidCatch(error: Error) {
-    console.error('Uncaught error:', error);
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
   }
 
   public render() {

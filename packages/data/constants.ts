@@ -1,98 +1,91 @@
-import packageJson from '../../package.json';
-import LensEndpoint from './lens-endpoints';
-import getEnvConfig from './utils/getEnvConfig';
+import packageJson from "../../package.json";
+import LensEndpoint from "./lens-endpoints";
+import getEnvConfig from "./utils/getEnvConfig";
 
 // Environments
-export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-export const IS_PREVIEW = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
+export const IS_PRODUCTION = process.env.NEXT_PUBLIC_IS_PRODUCTION === "true";
 
-// Lens Network
-export const LENS_NETWORK = process.env.NEXT_PUBLIC_LENS_NETWORK ?? 'mainnet';
+// Lens and Hey Env Config
+export const LENS_NETWORK = process.env.NEXT_PUBLIC_LENS_NETWORK || "mainnet";
 
-export const API_URL = getEnvConfig().apiEndpoint;
-export const LENSHUB_PROXY = getEnvConfig().lensHubProxyAddress;
-export const LENS_PERIPHERY = getEnvConfig().lensPeripheryAddress;
+export const LENS_API_URL = getEnvConfig().lensApiEndpoint;
+export const HEY_API_URL = IS_PRODUCTION
+  ? "https://api.hey.xyz"
+  : "http://localhost:4784";
+export const LENS_HUB = getEnvConfig().lensHub;
+export const LENS_HANDLES = getEnvConfig().lensHandles;
+export const TOKEN_HANDLE_REGISTRY = getEnvConfig().tokenHandleRegistry;
+export const HEY_LENS_SIGNUP = getEnvConfig().heyLensSignup;
 export const DEFAULT_COLLECT_TOKEN = getEnvConfig().defaultCollectToken;
-export const LIT_PROTOCOL_ENVIRONMENT = getEnvConfig().litProtocolEnvironment;
+export const PERMISSIONLESS_CREATOR = getEnvConfig().permissionlessCreator;
+export const HEY_TIPPING = getEnvConfig().heyTipping;
 
-export const IS_MAINNET = API_URL === LensEndpoint.Mainnet;
-
-// XMTP
-export const XMTP_ENV = IS_MAINNET ? 'production' : 'dev';
-export const XMTP_PREFIX = 'lens.dev/dm';
+export const IS_MAINNET = LENS_API_URL === LensEndpoint.Mainnet;
+export const ADDRESS_PLACEHOLDER = "0x03Ba3...7EF";
 
 // Application
-export const APP_NAME = 'Lenster';
-export const DESCRIPTION =
-  'Lenster is a composable, decentralized, and permissionless social media web app built with Lens Protocol 🌿';
+export const APP_NAME = "Hey";
+export const DESCRIPTION = `${APP_NAME}.xyz is a decentralized, and permissionless social media app built with Lens Protocol 🌿`;
 export const APP_VERSION = packageJson.version;
-
-// Git
-export const GIT_COMMIT_SHA = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+export const BRAND_COLOR = "#FB3A5D";
+export const MAX_UINT256 = 2n ** 256n - 1n;
 
 // Misc
-export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-export const LENSPROTOCOL_HANDLE = 'lensprotocol';
-export const HANDLE_SUFFIX = IS_MAINNET ? '.lens' : '.test';
-
-// Mixpanel
-export const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN ?? '';
-export const MIXPANEL_ENABLED = MIXPANEL_TOKEN && IS_PRODUCTION;
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const COLLECT_FEES_ADDRESS =
+  "0x69696378FaEd01315c762e5122fFFBc7bab03570";
+export const PRO_EOA_ADDRESS = "0xCAFEfB235AE1c10dC579338d06D90F0c89c4e5D6";
+export const TEST_LENS_ID = "0x01e0b1";
+export const TEST_SUSPENDED_LENS_ID = "0x02";
+export const HEY_CURATED_ID = "0x0214f6";
+export const HANDLE_PREFIX = "lens/";
+export const CLUB_HANDLE_PREFIX = "club/";
+export const SIGNUP_PRICE = IS_MAINNET ? 8 : 1;
+export const MONTHLY_PRO_PRICE = 5;
+export const HEY_MEMBERSHIP_NFT = IS_MAINNET
+  ? "0x100372BBF7f975f6b1448fB11AB0F814b2740EEd"
+  : "0x75120677aBF34ae95a916C6E9DbB610a06536CC3";
+export const HEY_MEMBERSHIP_NFT_PUBLICATION_ID = "0x020b69-0x01";
 
 // URLs
-export const STATIC_ASSETS_URL = 'https://static-assets.lenster.xyz';
+export const STATIC_ASSETS_URL = "https://hey-assets.b-cdn.net";
 export const STATIC_IMAGES_URL = `${STATIC_ASSETS_URL}/images`;
-export const POLYGONSCAN_URL = IS_MAINNET ? 'https://polygonscan.com' : 'https://mumbai.polygonscan.com';
-export const RARIBLE_URL = IS_MAINNET ? 'https://rarible.com' : 'https://testnet.rarible.com';
-export const IPFS_GATEWAY = 'https://gateway.ipfscdn.io/ipfs/';
-export const ARWEAVE_GATEWAY = 'https://arweave.net/';
-export const EVER_API = 'https://endpoint.4everland.co';
-export const SIMPLEANALYTICS_API = 'https://simpleanalytics.com/lenster.xyz.json';
-export const DEFAULT_OG = `${STATIC_IMAGES_URL}/og/logo.jpeg`;
-export const IFRAMELY_URL = 'https://iframely.lenster.xyz/iframely';
+export const LENS_MEDIA_SNAPSHOT_URL =
+  "https://ik.imagekit.io/lens/media-snapshot";
+export const POLYGONSCAN_URL = IS_MAINNET
+  ? "https://polygonscan.com"
+  : "https://amoy.polygonscan.com";
+export const IPFS_GATEWAY = "https://gw.ipfs-lens.dev/ipfs";
+export const METADATA_ENDPOINT = "https://metadata.hey.xyz";
+export const EVER_API = "https://endpoint.4everland.co";
+export const EVER_REGION = "4EVERLAND";
+export const EVER_BUCKET = "hey-media";
+export const DEFAULT_OG = `${STATIC_IMAGES_URL}/og/cover.png`;
+export const PLACEHOLDER_IMAGE = `${STATIC_IMAGES_URL}/placeholder.webp`;
+export const MOONPAY_URL = IS_MAINNET
+  ? "https://buy.moonpay.com"
+  : "https://buy-sandbox.moonpay.com";
+export const HEY_IMAGEKIT_URL = "https://ik.imagekit.io/lensterimg";
+export const CLUBS_API_URL = "https://us-central1-orbapp.cloudfunctions.net";
 
-// Workers
-export const USER_CONTENT_URL = 'https://user-content.lenster.xyz';
-export const STS_TOKEN_URL = IS_PRODUCTION ? 'https://sts.lenster.xyz' : 'http://localhost:8082';
-export const METADATA_WORKER_URL = IS_PRODUCTION ? 'https://metadata.lenster.xyz' : 'http://localhost:8083';
-export const FRESHDESK_WORKER_URL = IS_PRODUCTION ? 'https://freshdesk.lenster.xyz' : 'http://localhost:8084';
+// Tokens / Keys
+export const WALLETCONNECT_PROJECT_ID = "cd542acc70c2b548030f9901a52e70c8";
+export const GIPHY_KEY = "yNwCXMKkiBrxyyFduF56xCbSuJJM8cMd";
+export const LIVEPEER_KEY = "70508bf8-2e16-4594-852d-5aed798f6403";
+export const CLUBS_APP_TOKEN =
+  "Qun7aDFo4FS7Dt2b9Ea8ve5TqvuXiCJXjZZTsao5Y9viFJxSEi5gYZa7DybrSzDGXST5L2vWMjBXzjsppj5RERo3AdPnJ3TVYuY2cLxBFa592rkjzU";
+export const UNLEASH_API_TOKEN =
+  "*:production.1cc40547dde90e0b342a3dffa825d52a9d9e13597c9dedea480aa9c0";
 
-// Web3
-export const ALCHEMY_KEY = '7jxlM7yIx-aJXDivcEZxsLFFRKQS6-ue';
-export const WALLETCONNECT_PROJECT_ID = 'cd542acc70c2b548030f9901a52e70c8';
+// Named transforms for ImageKit
+export const AVATAR = "tr:w-350,h-350";
+export const EXPANDED_AVATAR = "tr:w-1000,h-1000";
+export const COVER = "tr:w-1350,h-350";
+export const VIDEO_THUMBNAIL = "tr:h-1000";
+export const ATTACHMENT = "tr:w-1000";
 
-// Regex
-export const URL_REGEX =
-  /^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[\da-z]+([.\-][\da-z]+)*\.[a-z]{2,63}(:\d{1,5})?(\/.*)?$/;
-export const ADDRESS_REGEX = /^(0x)?[\da-f]{40}$/i;
-export const HANDLE_REGEX = /^[\da-z]+$/;
-export const ALL_HANDLES_REGEX = /([\s+])@(\S+)/g;
-export const HANDLE_SANITIZE_REGEX = /[^\d .A-Za-z]/g;
-
-// Utils
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-export const ALLOWED_AUDIO_TYPES = [
-  'audio/mpeg',
-  'audio/wav',
-  'audio/mp4',
-  'audio/aac',
-  'audio/ogg',
-  'audio/webm',
-  'audio/flac'
-];
-export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/mpeg', 'video/ogg', 'video/webm', 'video/quicktime'];
-export const ALLOWED_MEDIA_TYPES = [...ALLOWED_VIDEO_TYPES, ...ALLOWED_IMAGE_TYPES, ...ALLOWED_AUDIO_TYPES];
-
-// UI
-export const MESSAGE_PAGE_LIMIT = 15;
-export const MIN_WIDTH_DESKTOP = 1024;
-
-// Named transforms
-export const AVATAR = '300x300';
-export const COVER = '1500x500';
-export const ATTACHMENT = '1000,fit';
-
-// S3 bucket
-export const S3_BUCKET = {
-  LENSTER_MEDIA: 'lenster-media'
+// Known Lens Protocol Attributes
+export const KNOWN_ATTRIBUTES = {
+  HIDE_OEMBED: "hideOembed",
+  POLL_ID: "heyPollId"
 };

@@ -1,71 +1,86 @@
-import ActionType from '@components/Home/Timeline/EventType';
-import type { ElectedMirror, FeedItem, Publication } from 'lens';
-import { useRouter } from 'next/router';
-import type { FC } from 'react';
-
-import PublicationActions from './Actions';
-import ModAction from './Actions/ModAction';
-import HiddenPublication from './HiddenPublication';
-import PublicationBody from './PublicationBody';
-import PublicationHeader from './PublicationHeader';
-import PublicationType from './Type';
+import ActionType from "@components/Home/Timeline/EventType";
+import PublicationWrapper from "@components/Shared/PublicationWrapper";
+import type { AnyPublication, FeedItem } from "@hey/lens";
+import cn from "@hey/ui/cn";
+import type { FC, ReactNode } from "react";
+import { memo } from "react";
+import usePushToImpressions from "src/hooks/usePushToImpressions";
+import PublicationActions from "./Actions";
+import HiddenPublication from "./HiddenPublication";
+import PublicationAvatar from "./PublicationAvatar";
+import PublicationBody from "./PublicationBody";
+import PublicationHeader from "./PublicationHeader";
+import PublicationType from "./Type";
 
 interface SinglePublicationProps {
-  publication: Publication;
   feedItem?: FeedItem;
-  showType?: boolean;
+  header?: ReactNode;
+  isFirst?: boolean;
+  isLast?: boolean;
+  publication: AnyPublication;
   showActions?: boolean;
-  showModActions?: boolean;
+  showMore?: boolean;
   showThread?: boolean;
+  showType?: boolean;
 }
 
 const SinglePublication: FC<SinglePublicationProps> = ({
-  publication,
   feedItem,
-  showType = true,
+  header,
+  isFirst = false,
+  isLast = false,
+  publication,
   showActions = true,
-  showModActions = false,
-  showThread = true
+  showMore = true,
+  showThread = true,
+  showType = true
 }) => {
-  const { push } = useRouter();
-  const firstComment = feedItem?.comments && feedItem.comments[0];
-  const rootPublication = feedItem ? (firstComment ? firstComment : feedItem?.root) : publication;
+  const rootPublication = feedItem ? feedItem?.root : publication;
+  usePushToImpressions(rootPublication.id);
 
   return (
-    <article
-      className="cursor-pointer p-5 first:rounded-t-xl last:rounded-b-xl hover:bg-gray-100 dark:hover:bg-gray-900"
-      onClick={() => {
-        const selection = window.getSelection();
-        if (!selection || selection.toString().length === 0) {
-          push(`/posts/${rootPublication?.id}`);
-        }
-      }}
-      data-testid={`publication-${publication.id}`}
+    <PublicationWrapper
+      className={cn(
+        isFirst && "rounded-t-xl",
+        isLast && "rounded-b-xl",
+        "cursor-pointer px-5 pt-4 pb-3 transition-colors hover:bg-gray-100 dark:hover:bg-gray-900"
+      )}
+      publication={rootPublication}
     >
+      {header}
       {feedItem ? (
         <ActionType feedItem={feedItem} />
       ) : (
-        <PublicationType publication={publication} showType={showType} showThread={showThread} />
+        <PublicationType
+          publication={publication}
+          showThread={showThread}
+          showType={showType}
+        />
       )}
-      <PublicationHeader publication={rootPublication} feedItem={feedItem} />
-      <div className="ml-[53px]">
-        {publication?.hidden ? (
-          <HiddenPublication type={publication.__typename} />
-        ) : (
-          <>
-            <PublicationBody publication={rootPublication} />
-            {showActions && (
-              <PublicationActions
+      <div className="flex items-start space-x-3">
+        <PublicationAvatar feedItem={feedItem} publication={rootPublication} />
+        <div className="w-[calc(100%-55px)]">
+          <PublicationHeader
+            feedItem={feedItem}
+            publication={rootPublication}
+          />
+          {publication.isHidden ? (
+            <HiddenPublication type={publication.__typename} />
+          ) : (
+            <>
+              <PublicationBody
                 publication={rootPublication}
-                electedMirror={feedItem?.electedMirror as ElectedMirror}
+                showMore={showMore}
               />
-            )}
-            {showModActions && <ModAction publication={rootPublication} className="mt-3 max-w-md" />}
-          </>
-        )}
+              {showActions ? (
+                <PublicationActions publication={rootPublication} />
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
-    </article>
+    </PublicationWrapper>
   );
 };
 
-export default SinglePublication;
+export default memo(SinglePublication);

@@ -1,21 +1,26 @@
-import ToggleWithHelper from '@components/Shared/ToggleWithHelper';
-import { UserGroupIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { FC } from 'react';
-import { useCollectModuleStore } from 'src/store/collect-module';
+import ToggleWithHelper from "@components/Shared/ToggleWithHelper";
+import { UserGroupIcon } from "@heroicons/react/24/outline";
+import type { CollectModuleType } from "@hey/types/hey";
+import type { FC } from "react";
+import { useCollectModuleStore } from "src/store/non-persisted/publication/useCollectModuleStore";
 
-const FollowersConfig: FC = () => {
-  const followerOnly = useCollectModuleStore((state) => state.followerOnly);
-  const setFollowerOnly = useCollectModuleStore((state) => state.setFollowerOnly);
+interface FollowersConfigProps {
+  setCollectType: (data: CollectModuleType) => void;
+}
+
+const FollowersConfig: FC<FollowersConfigProps> = ({ setCollectType }) => {
+  const { collectModule } = useCollectModuleStore((state) => state);
 
   return (
-    <div className="pt-5">
+    <div className="mt-5">
       <ToggleWithHelper
-        on={followerOnly}
-        setOn={() => setFollowerOnly(!followerOnly)}
-        heading={t`Who can collect`}
-        description={t`Only followers can collect`}
-        icon={<UserGroupIcon className="h-4 w-4" />}
+        description="Only followers can collect"
+        heading="Exclusivity"
+        icon={<UserGroupIcon className="size-5" />}
+        on={collectModule.followerOnly || false}
+        setOn={() =>
+          setCollectType({ followerOnly: !collectModule.followerOnly })
+        }
       />
     </div>
   );

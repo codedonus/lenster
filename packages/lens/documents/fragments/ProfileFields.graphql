@@ -1,29 +1,28 @@
 fragment ProfileFields on Profile {
   id
-  name
-  handle
-  bio
-  ownedBy
-  isFollowedByMe
+  handle {
+    ...HandleInfoFields
+  }
+  ownedBy {
+    ...NetworkAddressFields
+  }
+  signless
+  sponsor
+  createdAt
   stats {
-    totalFollowers
-    totalFollowing
+    ...ProfileStatsFields
   }
-  attributes {
-    key
-    value
+  operations {
+    ...ProfileOperationsFields
   }
-  picture {
-    ... on MediaSet {
-      original {
-        url
-      }
-    }
-    ... on NftImage {
-      uri
-    }
+  interests
+  followNftAddress {
+    ...NetworkAddressFields
   }
   followModule {
-    __typename
+    ...FollowModuleFields
+  }
+  metadata {
+    ...ProfileMetadataFields
   }
 }

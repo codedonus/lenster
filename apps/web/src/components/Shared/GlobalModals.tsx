@@ -1,63 +1,113 @@
-import Report from '@components/Shared/Modal/Report';
-import { ArrowCircleRightIcon, EmojiHappyIcon, ShieldCheckIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { FC } from 'react';
-import { useAuthStore } from 'src/store/auth';
-import { useGlobalModalStateStore } from 'src/store/modals';
-import { Modal } from 'ui';
-
-import Login from './Login';
-import Status from './Status';
-import SwitchProfiles from './SwitchProfiles';
+import NewPublication from "@components/Composer/NewPublication";
+import ReportPublication from "@components/Shared/Modal/ReportPublication";
+import { Modal } from "@hey/ui";
+import type { FC } from "react";
+import { useGlobalModalStateStore } from "src/store/non-persisted/useGlobalModalStateStore";
+import { useAccount } from "wagmi";
+import Auth from "./Auth";
+import { useSignupStore } from "./Auth/Signup";
+import GlobalModalsFromUrl from "./GlobalModalsFromUrl";
+import AddToList from "./Modal/AddToList";
+import OptimisticTransactions from "./Modal/OptimisticTransactions";
+import ProfileStatus from "./Modal/ProfileStatus";
+import ReportProfile from "./Modal/ReportProfile";
+import SwitchProfiles from "./SwitchProfiles";
 
 const GlobalModals: FC = () => {
-  // Report modal state
-  const showReportModal = useGlobalModalStateStore((state) => state.showReportModal);
-  const reportingPublication = useGlobalModalStateStore((state) => state.reportingPublication);
-  const setShowReportModal = useGlobalModalStateStore((state) => state.setShowReportModal);
-  const showStatusModal = useGlobalModalStateStore((state) => state.showStatusModal);
-  const setShowStatusModal = useGlobalModalStateStore((state) => state.setShowStatusModal);
-  const showProfileSwitchModal = useGlobalModalStateStore((state) => state.showProfileSwitchModal);
-  const setShowProfileSwitchModal = useGlobalModalStateStore((state) => state.setShowProfileSwitchModal);
-  const showAuthModal = useAuthStore((state) => state.showAuthModal);
-  const setShowAuthModal = useAuthStore((state) => state.setShowAuthModal);
+  const {
+    authModalType,
+    reportingProfile,
+    reportingPublicationId,
+    setShowAuthModal,
+    setShowNewPostModal,
+    setShowOptimisticTransactionsModal,
+    setShowProfileSwitchModal,
+    setShowPublicationReportModal,
+    setShowReportProfileModal,
+    showAuthModal,
+    showNewPostModal,
+    showOptimisticTransactionsModal,
+    showProfileSwitchModal,
+    showPublicationReportModal,
+    showReportProfileModal,
+    showEditStatusModal,
+    setShowEditStatusModal,
+    showAddToListModal,
+    setShowAddToListModal
+  } = useGlobalModalStateStore();
+
+  const { screen: signupScreen } = useSignupStore();
+  const { address } = useAccount();
+
+  const authModalTitle =
+    authModalType === "signup"
+      ? signupScreen === "choose"
+        ? "Signup"
+        : null
+      : "Login";
 
   return (
     <>
-      {reportingPublication ? (
-        <Modal
-          title={t`Report`}
-          icon={<ShieldCheckIcon className="text-brand h-5 w-5" />}
-          show={showReportModal}
-          onClose={() => setShowReportModal(false, reportingPublication)}
-        >
-          <Report publication={reportingPublication} />
-        </Modal>
-      ) : null}
+      <GlobalModalsFromUrl />
       <Modal
-        title={t`Set status`}
-        icon={<EmojiHappyIcon className="text-brand h-5 w-5" />}
-        show={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
+        onClose={() =>
+          setShowPublicationReportModal(false, reportingPublicationId)
+        }
+        show={showPublicationReportModal}
+        title="Report Publication"
       >
-        <Status />
+        <ReportPublication publicationId={reportingPublicationId} />
       </Modal>
       <Modal
-        title={t`Change Profile`}
-        show={showProfileSwitchModal}
+        onClose={() => setShowReportProfileModal(false, reportingProfile)}
+        show={showReportProfileModal}
+        title="Report profile"
+      >
+        <ReportProfile profile={reportingProfile} />
+      </Modal>
+      <Modal
         onClose={() => setShowProfileSwitchModal(false)}
-        size="xs"
+        show={showProfileSwitchModal}
+        size={address ? "xs" : "sm"}
+        title="Switch Profile"
       >
         <SwitchProfiles />
       </Modal>
       <Modal
-        title={t`Login`}
-        icon={<ArrowCircleRightIcon className="text-brand h-5 w-5" />}
+        onClose={() => setShowAuthModal(false, authModalType)}
         show={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        dataTestId="login-modal"
+        title={authModalTitle}
       >
-        <Login />
+        <Auth />
+      </Modal>
+      <Modal
+        onClose={() => setShowNewPostModal(false)}
+        show={showNewPostModal}
+        size="md"
+        title="Create post"
+      >
+        <NewPublication className="!rounded-b-xl !rounded-t-none border-none" />
+      </Modal>
+      <Modal
+        onClose={() => setShowOptimisticTransactionsModal(false)}
+        show={showOptimisticTransactionsModal}
+        title="Optimistic Transactions"
+      >
+        <OptimisticTransactions />
+      </Modal>
+      <Modal
+        onClose={() => setShowEditStatusModal(false)}
+        show={showEditStatusModal}
+        title="Edit Status"
+      >
+        <ProfileStatus />
+      </Modal>
+      <Modal
+        onClose={() => setShowAddToListModal(false, null)}
+        show={showAddToListModal}
+        title="Add to list"
+      >
+        <AddToList />
       </Modal>
     </>
   );

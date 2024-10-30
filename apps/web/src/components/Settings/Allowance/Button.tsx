@@ -1,122 +1,156 @@
-import { ExclamationIcon, MinusIcon, PlusIcon } from '@heroicons/react/outline';
-import { getModule } from '@lib/getModule';
-import { Mixpanel } from '@lib/mixpanel';
-import onError from '@lib/onError';
-import { t, Trans } from '@lingui/macro';
-import type { ApprovedAllowanceAmount } from 'lens';
-import { useGenerateModuleCurrencyApprovalDataLazyQuery } from 'lens';
-import type { Dispatch, FC } from 'react';
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { SETTINGS } from 'src/tracking';
-import { Button, Modal, Spinner, WarningMessage } from 'ui';
-import { useSendTransaction, useWaitForTransaction } from 'wagmi';
+import errorToast from "@helpers/errorToast";
+import getAllowanceModule from "@helpers/getAllowanceModule";
+import { Leafwatch } from "@helpers/leafwatch";
+import { SETTINGS } from "@hey/data/tracking";
+import type { ApprovedAllowanceAmountResult } from "@hey/lens";
+import {
+  OpenActionModuleType,
+  useGenerateModuleCurrencyApprovalDataLazyQuery
+} from "@hey/lens";
+import { Button, Modal, WarningMessage } from "@hey/ui";
+import type { Dispatch, FC, SetStateAction } from "react";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import useHandleWrongNetwork from "src/hooks/useHandleWrongNetwork";
+import { useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 
 interface AllowanceButtonProps {
-  title?: string;
-  module: ApprovedAllowanceAmount;
   allowed: boolean;
-  setAllowed: Dispatch<boolean>;
+  className?: string;
+  module: ApprovedAllowanceAmountResult;
+  setAllowed: Dispatch<SetStateAction<boolean>>;
+  title?: string;
 }
 
-const AllowanceButton: FC<AllowanceButtonProps> = ({ title = t`Allow`, module, allowed, setAllowed }) => {
+const AllowanceButton: FC<AllowanceButtonProps> = ({
+  allowed,
+  className = "",
+  module,
+  setAllowed,
+  title = "Allow"
+}) => {
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [generateAllowanceQuery, { loading: queryLoading }] =
+  const [generateModuleCurrencyApprovalData, { loading: queryLoading }] =
     useGenerateModuleCurrencyApprovalDataLazyQuery();
+  const handleWrongNetwork = useHandleWrongNetwork();
+
+  const onError = (error: any) => {
+    errorToast(error);
+  };
 
   const {
-    data: txData,
-    isLoading: transactionLoading,
+    data: txHash,
+    isPending: transactionLoading,
     sendTransaction
   } = useSendTransaction({
-    request: {},
-    mode: 'recklesslyUnprepared',
-    onError
+    mutation: { onError }
   });
 
-  const { isLoading: waitLoading } = useWaitForTransaction({
-    hash: txData?.hash,
-    onSuccess: () => {
-      toast.success(t`Module ${allowed ? 'disabled' : 'enabled'} successfully!`);
+  const {
+    error,
+    isLoading: waitLoading,
+    isSuccess
+  } = useWaitForTransactionReceipt({ hash: txHash });
+
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success(allowed ? "Module disabled" : "Module enabled");
       setShowWarningModal(false);
       setAllowed(!allowed);
-      Mixpanel.track(SETTINGS.ALLOWANCE.TOGGLE, {
-        allowance_module: module.module,
-        allowance_currency: module.currency,
-        allowance_allowed: !allowed
+      Leafwatch.track(SETTINGS.ALLOWANCE.TOGGLE, {
+        allowed: !allowed,
+        currency: module.allowance.asset.symbol,
+        module: module.moduleName
       });
-    },
-    onError
-  });
+    }
 
-  const handleAllowance = (currencies: string, value: string, selectedModule: string) => {
-    generateAllowanceQuery({
-      variables: {
-        request: {
-          currency: currencies,
-          value: value,
-          [getModule(module.module).field]: selectedModule
-        }
-      }
-    }).then((res) => {
-      const data = res?.data?.generateModuleCurrencyApprovalData;
-      sendTransaction?.({
-        recklesslySetUnpreparedRequest: {
-          from: data?.from,
-          to: data?.to,
-          data: data?.data
+    if (error) {
+      onError(error);
+    }
+  }, [isSuccess, error]);
+
+  const handleAllowance = async (
+    contract: string,
+    value: string,
+    selectedModule: string
+  ) => {
+    try {
+      const isUnknownModule =
+        module.moduleName === OpenActionModuleType.UnknownOpenActionModule;
+
+      const { data } = await generateModuleCurrencyApprovalData({
+        variables: {
+          request: {
+            allowance: { currency: contract, value: value },
+            module: {
+              [isUnknownModule
+                ? "unknownOpenActionModule"
+                : getAllowanceModule(module.moduleName).field]: isUnknownModule
+                ? module.moduleContract.address
+                : selectedModule
+            }
+          }
         }
       });
-    });
+      await handleWrongNetwork();
+
+      return sendTransaction?.({
+        account: data?.generateModuleCurrencyApprovalData.from,
+        data: data?.generateModuleCurrencyApprovalData.data,
+        to: data?.generateModuleCurrencyApprovalData.to
+      });
+    } catch (error) {
+      onError(error);
+    }
   };
 
   return allowed ? (
     <Button
-      variant="warning"
-      icon={
-        queryLoading || transactionLoading || waitLoading ? (
-          <Spinner variant="warning" size="xs" />
-        ) : (
-          <MinusIcon className="h-4 w-4" />
+      className={className}
+      disabled={queryLoading || transactionLoading || waitLoading}
+      onClick={() =>
+        handleAllowance(
+          module.allowance.asset.contract.address,
+          "0",
+          module.moduleName
         )
       }
-      onClick={() => handleAllowance(module.currency, '0', module.module)}
     >
-      <Trans>Revoke</Trans>
+      Revoke
     </Button>
   ) : (
     <>
-      <Button icon={<PlusIcon className="h-4 w-4" />} onClick={() => setShowWarningModal(!showWarningModal)}>
+      <Button
+        className={className}
+        onClick={() => setShowWarningModal(!showWarningModal)}
+        outline
+      >
         {title}
       </Button>
       <Modal
-        title={t`Warning`}
-        icon={<ExclamationIcon className="h-5 w-5 text-yellow-500" />}
-        show={showWarningModal}
         onClose={() => setShowWarningModal(false)}
+        show={showWarningModal}
+        title="Warning"
       >
         <div className="space-y-3 p-5">
           <WarningMessage
-            title={t`Handle with care!`}
             message={
               <div className="leading-6">
-                <Trans>
-                  Please be aware that by allowing this module, the amount indicated will be automatically
-                  deducted when you <b>collect</b> and <b>super follow</b>.
-                </Trans>
+                Please be aware that by allowing this module, the amount
+                indicated will be automatically deducted when you <b>Collect</b>{" "}
+                and <b>Super follow</b>.
               </div>
             }
+            title="Handle with care!"
           />
           <Button
-            icon={
-              queryLoading || transactionLoading || waitLoading ? (
-                <Spinner size="xs" />
-              ) : (
-                <PlusIcon className="h-4 w-4" />
-              )
-            }
+            disabled={queryLoading || transactionLoading || waitLoading}
             onClick={() =>
-              handleAllowance(module.currency, Number.MAX_SAFE_INTEGER.toString(), module.module)
+              handleAllowance(
+                module.allowance.asset.contract.address,
+                Number.MAX_SAFE_INTEGER.toString(),
+                module.moduleName
+              )
             }
           >
             {title}

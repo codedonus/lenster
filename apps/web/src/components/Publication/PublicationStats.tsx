@@ -1,112 +1,160 @@
-import Collectors from '@components/Shared/Modal/Collectors';
-import Likes from '@components/Shared/Modal/Likes';
-import Mirrors from '@components/Shared/Modal/Mirrors';
-import { CollectionIcon, HeartIcon, SwitchHorizontalIcon } from '@heroicons/react/outline';
-import { t, Trans } from '@lingui/macro';
-import type { Publication } from 'lens';
-import nFormatter from 'lib/nFormatter';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { usePreferencesStore } from 'src/store/preferences';
-import { Modal } from 'ui';
+import Collectors from "@components/Shared/Modal/Collectors";
+import Likes from "@components/Shared/Modal/Likes";
+import Mirrors from "@components/Shared/Modal/Mirrors";
+import { Leafwatch } from "@helpers/leafwatch";
+import { PUBLICATION } from "@hey/data/tracking";
+import getPublicationsViews, {
+  GET_PUBLICATIONS_VIEWS_QUERY_KEY
+} from "@hey/helpers/getPublicationsViews";
+import nFormatter from "@hey/helpers/nFormatter";
+import type { PublicationStats as IPublicationStats } from "@hey/lens";
+import { Modal } from "@hey/ui";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import plur from "plur";
+import type { FC } from "react";
+import { memo, useState } from "react";
 
 interface PublicationStatsProps {
-  publication: Publication;
+  publicationId: string;
+  publicationStats: IPublicationStats;
 }
 
-const PublicationStats: FC<PublicationStatsProps> = ({ publication }) => {
-  const hideLikesCount = usePreferencesStore((state) => state.hideLikesCount);
-  const [showMirrorsModal, setShowMirrorsModal] = useState(false);
+const PublicationStats: FC<PublicationStatsProps> = ({
+  publicationId,
+  publicationStats
+}) => {
   const [showLikesModal, setShowLikesModal] = useState(false);
+  const [showMirrorsModal, setShowMirrorsModal] = useState(false);
   const [showCollectorsModal, setShowCollectorsModal] = useState(false);
 
-  const isMirror = publication.__typename === 'Mirror';
-  const commentsCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalAmountOfComments
-    : publication?.stats?.totalAmountOfComments;
-  const mirrorCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalAmountOfMirrors
-    : publication?.stats?.totalAmountOfMirrors;
-  const reactionCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalUpvotes
-    : publication?.stats?.totalUpvotes;
-  const collectCount = isMirror
-    ? publication?.mirrorOf?.stats?.totalAmountOfCollects
-    : publication?.stats?.totalAmountOfCollects;
-  const publicationId = isMirror ? publication?.mirrorOf?.id : publication?.id;
+  const { data } = useQuery({
+    enabled: Boolean(publicationId),
+    queryFn: () => getPublicationsViews([publicationId]),
+    queryKey: [GET_PUBLICATIONS_VIEWS_QUERY_KEY, publicationId],
+    refetchInterval: 5000
+  });
+
+  const views = data?.[0]?.views || 0;
+  const { bookmarks, comments, countOpenActions, mirrors, quotes, reactions } =
+    publicationStats;
+
+  const showStats =
+    comments > 0 ||
+    reactions > 0 ||
+    mirrors > 0 ||
+    quotes > 0 ||
+    countOpenActions > 0 ||
+    bookmarks > 0 ||
+    views > 0;
+
+  if (!showStats) {
+    return null;
+  }
 
   return (
-    <div className="lt-text-gray-500 flex flex-wrap items-center gap-6 py-3 text-sm sm:gap-8">
-      {mirrorCount > 0 && (
-        <>
-          <span data-testid={`publication-${publication.id}-comment-stats`}>
-            <Trans>
-              <b className="text-black dark:text-white">{nFormatter(commentsCount)}</b> Comments
-            </Trans>
+    <>
+      <div className="divider" />
+      <div className="ld-text-gray-500 flex flex-wrap items-center gap-x-6 gap-y-3 py-3 text-sm">
+        {comments > 0 ? (
+          <span>
+            <b className="text-black dark:text-white">{nFormatter(comments)}</b>{" "}
+            {plur("Comment", comments)}
           </span>
+        ) : null}
+        {mirrors > 0 ? (
           <button
-            type="button"
+            className="outline-offset-2"
             onClick={() => setShowMirrorsModal(true)}
-            data-testid={`publication-${publication.id}-mirror-stats`}
-          >
-            <Trans>
-              <b className="text-black dark:text-white">{nFormatter(mirrorCount)}</b> Mirrors
-            </Trans>
-          </button>
-          <Modal
-            title={t`Mirrored by`}
-            icon={<SwitchHorizontalIcon className="text-brand h-5 w-5" />}
-            show={showMirrorsModal}
-            onClose={() => setShowMirrorsModal(false)}
-          >
-            <Mirrors publicationId={publicationId} />
-          </Modal>
-        </>
-      )}
-      {!hideLikesCount && reactionCount > 0 && (
-        <>
-          <button
             type="button"
+          >
+            <b className="text-black dark:text-white">{nFormatter(mirrors)}</b>{" "}
+            {plur("Mirror", mirrors)}
+          </button>
+        ) : null}
+        {quotes > 0 ? (
+          <Link
+            className="outline-offset-2"
+            href={`/posts/${publicationId}/quotes`}
+          >
+            <b className="text-black dark:text-white">{nFormatter(quotes)}</b>{" "}
+            {plur("Quote", quotes)}
+          </Link>
+        ) : null}
+        {reactions > 0 ? (
+          <button
+            className="outline-offset-2"
             onClick={() => setShowLikesModal(true)}
-            data-testid={`publication-${publication.id}-like-stats`}
-          >
-            <Trans>
-              <b className="text-black dark:text-white">{nFormatter(reactionCount)}</b> Likes
-            </Trans>
-          </button>
-          <Modal
-            title={t`Liked by`}
-            icon={<HeartIcon className="text-brand h-5 w-5" />}
-            show={showLikesModal}
-            onClose={() => setShowLikesModal(false)}
-          >
-            <Likes publicationId={publicationId} />
-          </Modal>
-        </>
-      )}
-      {collectCount > 0 && (
-        <>
-          <button
             type="button"
-            onClick={() => setShowCollectorsModal(true)}
-            data-testid={`publication-${publication.id}-collect-stats`}
           >
-            <Trans>
-              <b className="text-black dark:text-white">{nFormatter(collectCount)}</b> Collects
-            </Trans>
+            <b className="text-black dark:text-white">
+              {nFormatter(reactions)}
+            </b>{" "}
+            {plur("Like", reactions)}
           </button>
-          <Modal
-            title={t`Collected by`}
-            icon={<CollectionIcon className="text-brand h-5 w-5" />}
-            show={showCollectorsModal}
-            onClose={() => setShowCollectorsModal(false)}
+        ) : null}
+        {countOpenActions > 0 ? (
+          <button
+            className="outline-offset-2"
+            onClick={() => setShowCollectorsModal(true)}
+            type="button"
           >
-            <Collectors publicationId={publicationId} />
-          </Modal>
-        </>
-      )}
-    </div>
+            <b className="text-black dark:text-white">
+              {nFormatter(countOpenActions)}
+            </b>{" "}
+            {plur("Collect", countOpenActions)}
+          </button>
+        ) : null}
+        {bookmarks > 0 ? (
+          <span>
+            <b className="text-black dark:text-white">
+              {nFormatter(bookmarks)}
+            </b>{" "}
+            {plur("Bookmark", bookmarks)}
+          </span>
+        ) : null}
+        {views > 0 ? (
+          <span>
+            <b className="text-black dark:text-white">{nFormatter(views)}</b>{" "}
+            {plur("View", views)}
+          </span>
+        ) : null}
+      </div>
+      <Modal
+        onClose={() => {
+          Leafwatch.track(PUBLICATION.OPEN_LIKES);
+          setShowLikesModal(false);
+        }}
+        show={showLikesModal}
+        title="Likes"
+        size="md"
+      >
+        <Likes publicationId={publicationId} />
+      </Modal>
+      <Modal
+        onClose={() => {
+          Leafwatch.track(PUBLICATION.OPEN_MIRRORS);
+          setShowMirrorsModal(false);
+        }}
+        show={showMirrorsModal}
+        title="Mirrors"
+        size="md"
+      >
+        <Mirrors publicationId={publicationId} />
+      </Modal>
+      <Modal
+        onClose={() => {
+          Leafwatch.track(PUBLICATION.OPEN_COLLECTORS);
+          setShowCollectorsModal(false);
+        }}
+        show={showCollectorsModal}
+        title="Collectors"
+        size="md"
+      >
+        <Collectors publicationId={publicationId} />
+      </Modal>
+    </>
   );
 };
 
-export default PublicationStats;
+export default memo(PublicationStats);

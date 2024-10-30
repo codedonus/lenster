@@ -1,33 +1,28 @@
-import type { Publication } from 'lens';
-import { useRouter } from 'next/router';
-import type { FC } from 'react';
-
-import PublicationActions from './Actions';
-import HiddenPublication from './HiddenPublication';
-import PublicationBody from './PublicationBody';
-import PublicationHeader from './PublicationHeader';
+import PublicationWrapper from "@components/Shared/PublicationWrapper";
+import type { AnyPublication } from "@hey/lens";
+import type { FC } from "react";
+import usePushToImpressions from "src/hooks/usePushToImpressions";
+import PublicationActions from "./Actions";
+import HiddenPublication from "./HiddenPublication";
+import PublicationAvatar from "./PublicationAvatar";
+import PublicationBody from "./PublicationBody";
+import PublicationHeader from "./PublicationHeader";
 
 interface ThreadBodyProps {
-  publication: Publication;
+  publication: AnyPublication;
 }
 
 const ThreadBody: FC<ThreadBodyProps> = ({ publication }) => {
-  const { push } = useRouter();
+  usePushToImpressions(publication.id);
 
   return (
-    <article
-      onClick={() => {
-        const selection = window.getSelection();
-        if (!selection || selection.toString().length === 0) {
-          push(`/posts/${publication?.id}`);
-        }
-      }}
-    >
-      <PublicationHeader publication={publication} />
-      <div className="flex">
-        <div className="-my-6 mr-8 ml-5 border-[0.8px] border-gray-300 bg-gray-300 dark:border-gray-700 dark:bg-gray-700" />
-        <div className="w-full pb-5">
-          {publication?.hidden ? (
+    <PublicationWrapper publication={publication}>
+      <div className="relative flex items-start space-x-3 pb-3">
+        <PublicationAvatar publication={publication} />
+        <div className="absolute bottom-0 left-[9.1px] h-full border-[0.9px] border-gray-300 border-solid dark:border-gray-700" />
+        <div className="w-[calc(100%-55px)]">
+          <PublicationHeader publication={publication} />
+          {publication.isHidden ? (
             <HiddenPublication type={publication.__typename} />
           ) : (
             <>
@@ -37,7 +32,7 @@ const ThreadBody: FC<ThreadBodyProps> = ({ publication }) => {
           )}
         </div>
       </div>
-    </article>
+    </PublicationWrapper>
   );
 };
 

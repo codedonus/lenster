@@ -1,19 +1,16 @@
 {
-  "name": "data",
+  "name": "@hey/data",
   "version": "0.0.0",
-  "main": "index.ts",
-  "license": "GPL-3.0",
+  "private": true,
+  "license": "AGPL-3.0",
   "scripts": {
-    "typecheck": "tsc --pretty --noEmit",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --fix --ext .ts"
-  },
-  "dependencies": {
-    "typescript": "^5.0.2"
+    "test": "vitest run",
+    "typecheck": "tsc --pretty"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
-    "eslint-config-weblint": "*",
-    "tsconfig": "*"
+    "@hey/config": "workspace:*",
+    "@types/node": "^22.8.4",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }

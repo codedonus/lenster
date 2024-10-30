@@ -1,47 +1,44 @@
-import { MoonIcon, SunIcon } from '@heroicons/react/outline';
-import { Mixpanel } from '@lib/mixpanel';
-import { Trans } from '@lingui/macro';
-import clsx from 'clsx';
-import { useTheme } from 'next-themes';
-import type { FC } from 'react';
-import React from 'react';
-import { SYSTEM } from 'src/tracking';
+import { Leafwatch } from "@helpers/leafwatch";
+import { MoonIcon, SunIcon } from "@heroicons/react/24/outline";
+import { SYSTEM } from "@hey/data/tracking";
+import cn from "@hey/ui/cn";
+import { useTheme } from "next-themes";
+import type { FC } from "react";
 
 interface ThemeSwitchProps {
-  onClick?: () => void;
   className?: string;
+  onClick?: () => void;
 }
 
-const ThemeSwitch: FC<ThemeSwitchProps> = ({ onClick, className = '' }) => {
-  const { theme, setTheme } = useTheme();
+const ThemeSwitch: FC<ThemeSwitchProps> = ({ className = "", onClick }) => {
+  const { setTheme, theme } = useTheme();
 
   return (
     <button
-      type="button"
-      className={clsx('flex w-full px-4 py-1.5 text-sm text-gray-700 dark:text-gray-200', className)}
+      className={cn(
+        "flex w-full items-center space-x-1.5 px-2 py-1.5 text-left text-gray-700 text-sm dark:text-gray-200",
+        className
+      )}
       onClick={() => {
-        setTheme(theme === 'light' ? 'dark' : 'light');
-        Mixpanel.track(SYSTEM.SWITCH_THEME, { mode: theme === 'light' ? 'dark' : 'light' });
+        setTheme(theme === "light" ? "dark" : "light");
+        Leafwatch.track(SYSTEM.SWITCH_THEME, {
+          mode: theme === "light" ? "dark" : "light"
+        });
         onClick?.();
       }}
+      type="button"
     >
-      <div className="flex items-center space-x-1.5">
-        {theme === 'light' ? (
-          <>
-            <MoonIcon className="h-4 w-4" />
-            <div>
-              <Trans>Dark mode</Trans>
-            </div>
-          </>
-        ) : (
-          <>
-            <SunIcon className="h-4 w-4" />
-            <div>
-              <Trans>Light mode</Trans>
-            </div>
-          </>
-        )}
-      </div>
+      {theme === "light" ? (
+        <>
+          <MoonIcon className="size-4" />
+          <div>Dark mode</div>
+        </>
+      ) : (
+        <>
+          <SunIcon className="size-4" />
+          <div>Light mode</div>
+        </>
+      )}
     </button>
   );
 };

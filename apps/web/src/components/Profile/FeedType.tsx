@@ -1,72 +1,78 @@
+import { Leafwatch } from "@helpers/leafwatch";
 import {
-  ChatAlt2Icon,
-  CollectionIcon,
+  ChatBubbleLeftIcon,
   FilmIcon,
-  PencilAltIcon,
-  PhotographIcon
-} from '@heroicons/react/outline';
-import { Mixpanel } from '@lib/mixpanel';
-import { t } from '@lingui/macro';
-import type { Dispatch, FC } from 'react';
-import { ProfileFeedType } from 'src/enums';
-import { PROFILE } from 'src/tracking';
-import { TabButton } from 'ui';
-
-import MediaFilter from './Filters/MediaFilter';
+  ListBulletIcon,
+  PencilSquareIcon,
+  ShoppingBagIcon
+} from "@heroicons/react/24/outline";
+import { ProfileFeedType } from "@hey/data/enums";
+import { PROFILE } from "@hey/data/tracking";
+import { TabButton } from "@hey/ui";
+import type { Dispatch, FC, SetStateAction } from "react";
+import MediaFilter from "./Filters/MediaFilter";
 
 interface FeedTypeProps {
-  setFeedType: Dispatch<string>;
-  feedType: string;
+  feedType: ProfileFeedType;
+  setFeedType?: Dispatch<SetStateAction<ProfileFeedType>>;
 }
 
-const FeedType: FC<FeedTypeProps> = ({ setFeedType, feedType }) => {
-  const switchTab = (type: string) => {
-    setFeedType(type);
-    Mixpanel.track(PROFILE.SWITCH_PROFILE_FEED_TAB, {
+const FeedType: FC<FeedTypeProps> = ({ feedType, setFeedType }) => {
+  const switchTab = (type: ProfileFeedType) => {
+    if (setFeedType) {
+      setFeedType(type);
+    }
+    Leafwatch.track(PROFILE.SWITCH_PROFILE_FEED_TAB, {
       profile_feed_type: type.toLowerCase()
     });
   };
 
+  const tabs = [
+    {
+      icon: <PencilSquareIcon className="size-4" />,
+      name: "Feed",
+      type: ProfileFeedType.Feed
+    },
+    {
+      icon: <ChatBubbleLeftIcon className="size-4" />,
+      name: "Replies",
+      type: ProfileFeedType.Replies
+    },
+    {
+      icon: <FilmIcon className="size-4" />,
+      name: "Media",
+      type: ProfileFeedType.Media
+    },
+    {
+      icon: <ShoppingBagIcon className="size-4" />,
+      name: "Collected",
+      type: ProfileFeedType.Collects
+    },
+    {
+      icon: <ListBulletIcon className="size-4" />,
+      name: "Lists",
+      type: ProfileFeedType.Lists
+    }
+  ].filter(
+    (tab): tab is { icon: JSX.Element; name: string; type: ProfileFeedType } =>
+      Boolean(tab)
+  );
+
   return (
     <div className="flex items-center justify-between">
       <div className="mt-3 flex gap-3 overflow-x-auto px-5 pb-2 sm:mt-0 sm:px-0 md:pb-0">
-        <TabButton
-          name={t`Feed`}
-          icon={<PencilAltIcon className="h-4 w-4" />}
-          active={feedType === ProfileFeedType.Feed}
-          type={ProfileFeedType.Feed.toLowerCase()}
-          onClick={() => switchTab(ProfileFeedType.Feed)}
-        />
-        <TabButton
-          name={t`Replies`}
-          icon={<ChatAlt2Icon className="h-4 w-4" />}
-          active={feedType === ProfileFeedType.Replies}
-          type={ProfileFeedType.Replies.toLowerCase()}
-          onClick={() => switchTab(ProfileFeedType.Replies)}
-        />
-        <TabButton
-          name={t`Media`}
-          icon={<FilmIcon className="h-4 w-4" />}
-          active={feedType === ProfileFeedType.Media}
-          type={ProfileFeedType.Media.toLowerCase()}
-          onClick={() => switchTab(ProfileFeedType.Media)}
-        />
-        <TabButton
-          name={t`Collected`}
-          icon={<CollectionIcon className="h-4 w-4" />}
-          active={feedType === ProfileFeedType.Collects}
-          type={ProfileFeedType.Collects.toLowerCase()}
-          onClick={() => switchTab(ProfileFeedType.Collects)}
-        />
-        <TabButton
-          name={t`NFTs`}
-          icon={<PhotographIcon className="h-4 w-4" />}
-          active={feedType === ProfileFeedType.Nft}
-          type={ProfileFeedType.Nft.toLowerCase()}
-          onClick={() => switchTab(ProfileFeedType.Nft)}
-        />
+        {tabs.map((tab) => (
+          <TabButton
+            active={feedType === tab.type}
+            icon={tab.icon}
+            key={tab.type}
+            name={tab.name}
+            onClick={() => switchTab(tab.type)}
+            type={tab.type.toLowerCase()}
+          />
+        ))}
       </div>
-      <div>{feedType === ProfileFeedType.Media && <MediaFilter />}</div>
+      {feedType === ProfileFeedType.Media && <MediaFilter />}
     </div>
   );
 };

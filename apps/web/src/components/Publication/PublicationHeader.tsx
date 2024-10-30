@@ -1,45 +1,63 @@
-import UserProfile from '@components/Shared/UserProfile';
-import useModMode from '@components/utils/hooks/useModMode';
-import type { FeedItem, Publication } from 'lens';
-import { stopEventPropagation } from 'lib/stopEventPropagation';
-import type { FC } from 'react';
-
-import PublicationMenu from './Actions/Menu';
-import Source from './Source';
+import PublicationProfile from "@components/Publication/PublicationProfile";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { isMirrorPublication } from "@hey/helpers/publicationHelpers";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { AnyPublication, FeedItem } from "@hey/lens";
+import type { FC } from "react";
+import { usePublicationStore } from "src/store/non-persisted/publication/usePublicationStore";
+import PublicationMenu from "./Actions/Menu";
 
 interface PublicationHeaderProps {
-  publication: Publication;
   feedItem?: FeedItem;
+  isNew?: boolean;
+  publication: AnyPublication;
+  quoted?: boolean;
 }
 
-const PublicationHeader: FC<PublicationHeaderProps> = ({ publication, feedItem }) => {
-  const { allowed: modMode } = useModMode();
-  const isMirror = publication.__typename === 'Mirror';
-  const firstComment = feedItem?.comments && feedItem.comments[0];
-  const rootPublication = feedItem ? (firstComment ? firstComment : feedItem?.root) : publication;
-  const profile = feedItem
-    ? rootPublication.profile
-    : isMirror
-    ? publication?.mirrorOf?.profile
-    : publication?.profile;
+const PublicationHeader: FC<PublicationHeaderProps> = ({
+  feedItem,
+  isNew = false,
+  publication,
+  quoted = false
+}) => {
+  const { setQuotedPublication } = usePublicationStore();
+
+  const targetPublication = isMirrorPublication(publication)
+    ? publication?.mirrorOn
+    : publication;
+  const rootPublication = feedItem ? feedItem?.root : targetPublication;
+  const profile = feedItem ? rootPublication.by : targetPublication.by;
   const timestamp = feedItem
     ? rootPublication.createdAt
-    : isMirror
-    ? publication?.mirrorOf?.createdAt
-    : publication?.createdAt;
+    : targetPublication.createdAt;
 
   return (
     <div
-      className="relative flex justify-between space-x-1.5 pb-4"
-      data-testid={`publication-${publication.id}-header`}
+      className="flex w-full items-start justify-between"
+      onClick={stopEventPropagation}
     >
-      <span onClick={stopEventPropagation}>
-        <UserProfile profile={profile} timestamp={timestamp} showStatus />
-      </span>
-      <div className="!-mr-[7px] flex items-center space-x-1">
-        {modMode && <Source publication={publication} />}
-        <PublicationMenu publication={publication} />
-      </div>
+      <PublicationProfile
+        profile={profile}
+        publicationId={targetPublication.id}
+        source={targetPublication.publishedOn?.id}
+        tags={targetPublication.metadata?.tags || []}
+        timestamp={timestamp}
+      />
+      {!publication.isHidden && !quoted ? (
+        <PublicationMenu publication={targetPublication} />
+      ) : (
+        <div className="size-[30px]" />
+      )}
+      {quoted && isNew ? (
+        <button
+          aria-label="Remove Quote"
+          className="rounded-full border p-1.5 hover:bg-gray-300/20"
+          onClick={() => setQuotedPublication(null)}
+          type="reset"
+        >
+          <XMarkIcon className="ld-text-gray-500 size-4" />
+        </button>
+      ) : null}
     </div>
   );
 };

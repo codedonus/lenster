@@ -1,59 +1,64 @@
-import MetaTags from '@components/Common/MetaTags';
-import NewPost from '@components/Composer/Post/New';
-import ExploreFeed from '@components/Explore/Feed';
-import Footer from '@components/Shared/Footer';
-import { Mixpanel } from '@lib/mixpanel';
-import type { NextPage } from 'next';
-import { useEffect, useState } from 'react';
-import { useAppStore } from 'src/store/app';
-import { PAGEVIEW } from 'src/tracking';
-import { GridItemEight, GridItemFour, GridLayout } from 'ui';
-
-import EnableDispatcher from './EnableDispatcher';
-import EnableMessages from './EnableMessages';
-import FeedType from './FeedType';
-import Hero from './Hero';
-import Highlights from './Highlights';
-import RecommendedProfiles from './RecommendedProfiles';
-import SetDefaultProfile from './SetDefaultProfile';
-import SetProfile from './SetProfile';
-import Timeline from './Timeline';
+import NewPost from "@components/Composer/NewPost";
+import ExploreFeed from "@components/Explore/ExploreFeed";
+import ListFeed from "@components/List/ListFeed";
+import { Leafwatch } from "@helpers/leafwatch";
+import { HomeFeedType } from "@hey/data/enums";
+import { PAGEVIEW } from "@hey/data/tracking";
+import type { List } from "@hey/types/hey";
+import { GridItemEight, GridItemFour, GridLayout } from "@hey/ui";
+import type { NextPage } from "next";
+import { useEffect, useState } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import FeedType from "./FeedType";
+import ForYou from "./ForYou";
+import Hero from "./Hero";
+import PaidActions from "./PaidActions";
+import Sidebar from "./Sidebar";
+import Timeline from "./Timeline";
 
 const Home: NextPage = () => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const [feedType, setFeedType] = useState<'TIMELINE' | 'HIGHLIGHTS'>('TIMELINE');
+  const { currentProfile } = useProfileStore();
+  const [feedType, setFeedType] = useState<HomeFeedType>(
+    HomeFeedType.FOLLOWING
+  );
+  const [pinnedList, setPinnedList] = useState<List | null>(null);
 
   useEffect(() => {
-    Mixpanel.track(PAGEVIEW, { page: 'home' });
+    Leafwatch.track(PAGEVIEW, { page: "home" });
   }, []);
+
+  const loggedInWithProfile = Boolean(currentProfile);
 
   return (
     <>
-      <MetaTags />
-      {!currentProfile && <Hero />}
+      {!loggedInWithProfile && <Hero />}
       <GridLayout>
         <GridItemEight className="space-y-5">
-          {currentProfile ? (
+          {loggedInWithProfile ? (
             <>
               <NewPost />
-              <FeedType feedType={feedType} setFeedType={setFeedType} />
-              {feedType === 'TIMELINE' ? <Timeline /> : <Highlights />}
+              <FeedType
+                feedType={feedType}
+                setFeedType={setFeedType}
+                pinnedList={pinnedList}
+                setPinnedList={setPinnedList}
+              />
+              {feedType === HomeFeedType.FOLLOWING ? (
+                <Timeline />
+              ) : feedType === HomeFeedType.FORYOU ? (
+                <ForYou />
+              ) : feedType === HomeFeedType.PREMIUM ? (
+                <PaidActions />
+              ) : feedType === HomeFeedType.PINNED && pinnedList ? (
+                <ListFeed list={pinnedList} showHeader />
+              ) : null}
             </>
           ) : (
             <ExploreFeed />
           )}
         </GridItemEight>
         <GridItemFour>
-          {currentProfile ? (
-            <>
-              <EnableDispatcher />
-              <EnableMessages />
-              <SetDefaultProfile />
-              <SetProfile />
-              <RecommendedProfiles />
-            </>
-          ) : null}
-          <Footer />
+          <Sidebar />
         </GridItemFour>
       </GridLayout>
     </>

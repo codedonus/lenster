@@ -1,47 +1,66 @@
-import useModMode from '@components/utils/hooks/useModMode';
-import type { ElectedMirror, Publication } from 'lens';
-import { stopEventPropagation } from 'lib/stopEventPropagation';
-import type { FC } from 'react';
-import { useAppStore } from 'src/store/app';
-
-import Analytics from './Analytics';
-import Collect from './Collect';
-import Comment from './Comment';
-import Like from './Like';
-import Mirror from './Mirror';
-import Mod from './Mod';
+import { FeatureFlag } from "@hey/data/feature-flags";
+import getPublicationViewCountById from "@hey/helpers/getPublicationViewCountById";
+import isOpenActionAllowed from "@hey/helpers/isOpenActionAllowed";
+import { isMirrorPublication } from "@hey/helpers/publicationHelpers";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { AnyPublication } from "@hey/lens";
+import { useFlag } from "@unleash/proxy-client-react";
+import type { FC } from "react";
+import { memo } from "react";
+import { useImpressionsStore } from "src/store/non-persisted/useImpressionsStore";
+import OpenAction from "../OpenAction";
+import Collect from "../OpenAction/Collect";
+import Comment from "./Comment";
+import Like from "./Like";
+import Mod from "./Mod";
+import ShareMenu from "./Share";
+import Tip from "./Tip";
+import Views from "./Views";
 
 interface PublicationActionsProps {
-  publication: Publication;
-  electedMirror?: ElectedMirror;
+  publication: AnyPublication;
   showCount?: boolean;
 }
 
 const PublicationActions: FC<PublicationActionsProps> = ({
   publication,
-  electedMirror,
   showCount = false
 }) => {
-  const { allowed: modMode } = useModMode();
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const collectModuleType = publication?.collectModule.__typename;
-  const canMirror = currentProfile ? publication?.canMirror?.result : true;
+  const targetPublication = isMirrorPublication(publication)
+    ? publication.mirrorOn
+    : publication;
+  const { publicationViews } = useImpressionsStore();
+  const isGardener = useFlag(FeatureFlag.Gardener);
+  const hasOpenAction = (targetPublication.openActionModules?.length || 0) > 0;
+
+  const canAct =
+    hasOpenAction && isOpenActionAllowed(targetPublication.openActionModules);
+  const views = getPublicationViewCountById(
+    publicationViews,
+    targetPublication.id
+  );
 
   return (
     <span
-      className="-ml-2 flex flex-wrap items-center gap-x-6 gap-y-1 pt-3 sm:gap-8"
+      className="mt-3 flex w-full flex-wrap items-center justify-between gap-3"
       onClick={stopEventPropagation}
     >
-      <Comment publication={publication} showCount={showCount} />
-      {canMirror && <Mirror publication={publication} showCount={showCount} />}
-      <Like publication={publication} showCount={showCount} />
-      {collectModuleType !== 'RevertCollectModuleSettings' && (
-        <Collect electedMirror={electedMirror} publication={publication} showCount={showCount} />
-      )}
-      {modMode && <Mod publication={publication} isFullPublication={showCount} />}
-      <Analytics publication={publication} />
+      <span className="flex items-center gap-x-6">
+        <Comment publication={targetPublication} showCount={showCount} />
+        <ShareMenu publication={publication} showCount={showCount} />
+        <Like publication={targetPublication} showCount={showCount} />
+        {canAct && !showCount ? (
+          <OpenAction publication={targetPublication} />
+        ) : null}
+        <Tip publication={targetPublication} showCount={showCount} />
+        {views > 0 ? <Views showCount={showCount} views={views} /> : null}
+        {isGardener ? (
+          <Mod isFullPublication={showCount} publication={targetPublication} />
+        ) : null}
+      </span>
+      {canAct ? <Collect publication={targetPublication} /> : null}
     </span>
   );
 };
 
-export default PublicationActions;
+export default memo(PublicationActions);

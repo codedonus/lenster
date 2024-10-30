@@ -1,66 +1,53 @@
-import Markup from '@components/Shared/Markup';
-import UserPreview from '@components/Shared/UserPreview';
-import { ChatAlt2Icon } from '@heroicons/react/solid';
-import { formatTime, getTimeFromNow } from '@lib/formatTime';
-import { defineMessage } from '@lingui/macro';
-import { Trans } from '@lingui/react';
-import type { NewCommentNotification } from 'lens';
-import Link from 'next/link';
-import type { FC } from 'react';
-import type { MessageDescriptor } from 'src/types';
-
-import { NotificationProfileAvatar, NotificationProfileName } from '../Profile';
-
-const messages: Record<string, MessageDescriptor> = {
-  comment: defineMessage({
-    id: '<0><1/> commented on your <2>comment</2></0>'
-  }),
-  mirror: defineMessage({
-    id: '<0><1/> commented on your <2>mirror</2></0>'
-  }),
-  post: defineMessage({
-    id: '<0><1/> commented on your <2>post</2></0>'
-  })
-};
-
-const defaultMessage = (typeName: string): string => {
-  return '<0><1/> commented on your <2>' + typeName + '</2></0>';
-};
+import Markup from "@components/Shared/Markup";
+import { ChatBubbleLeftIcon } from "@heroicons/react/24/outline";
+import getPublicationData from "@hey/helpers/getPublicationData";
+import type { CommentNotification as TCommentNotification } from "@hey/lens";
+import Link from "next/link";
+import type { FC } from "react";
+import usePushToImpressions from "src/hooks/usePushToImpressions";
+import AggregatedNotificationTitle from "../AggregatedNotificationTitle";
+import { NotificationProfileAvatar } from "../Profile";
 
 interface CommentNotificationProps {
-  notification: NewCommentNotification;
+  notification: TCommentNotification;
 }
 
-const CommentNotification: FC<CommentNotificationProps> = ({ notification }) => {
-  const typeName = notification?.comment?.commentOn?.__typename?.toLowerCase() || '';
+const CommentNotification: FC<CommentNotificationProps> = ({
+  notification
+}) => {
+  const metadata = notification?.comment.metadata;
+  const filteredContent = getPublicationData(metadata)?.content || "";
+  const firstProfile = notification.comment.by;
+
+  const text = "commented on your";
+  // TODO: remove ? when we have commentOn field in the comment
+  const type = notification.comment.commentOn?.__typename;
+
+  usePushToImpressions(notification.comment.id);
+
   return (
-    <div className="flex items-start justify-between">
-      <div className="w-4/5 space-y-2">
-        <div className="flex items-center space-x-3">
-          <ChatAlt2Icon className="h-6 w-6 text-blue-500/70" />
-          <UserPreview profile={notification?.profile}>
-            <NotificationProfileAvatar profile={notification?.profile} />
-          </UserPreview>
-        </div>
-        <div className="ml-9">
-          <Trans
-            id={messages[typeName]?.id || defaultMessage(typeName)}
-            components={[
-              <span className="text-gray-600 dark:text-gray-400" key="" />,
-              <NotificationProfileName profile={notification?.profile} key="" />,
-              <Link href={`/posts/${notification?.comment?.commentOn?.id}`} className="font-bold" key="" />
-            ]}
-          />
-          <Link
-            href={`/posts/${notification?.comment.id}`}
-            className="lt-text-gray-500 line-clamp-2 linkify mt-2"
-          >
-            <Markup>{notification?.comment?.metadata?.content}</Markup>
-          </Link>
+    <div className="space-y-2">
+      <div className="flex items-center space-x-3">
+        <ChatBubbleLeftIcon className="size-6" />
+        <div className="flex items-center space-x-1">
+          <NotificationProfileAvatar profile={firstProfile} />
         </div>
       </div>
-      <div className="text-[12px] text-gray-400" title={formatTime(notification?.createdAt)}>
-        {getTimeFromNow(notification?.createdAt)}
+      <div className="ml-9">
+        <AggregatedNotificationTitle
+          firstProfile={firstProfile}
+          linkToType={`/posts/${notification?.comment?.id}`}
+          text={text}
+          type={type}
+        />
+        <Link
+          className="ld-text-gray-500 linkify mt-2 line-clamp-2"
+          href={`/posts/${notification?.comment?.id}`}
+        >
+          <Markup mentions={notification.comment.profilesMentioned}>
+            {filteredContent}
+          </Markup>
+        </Link>
       </div>
     </div>
   );

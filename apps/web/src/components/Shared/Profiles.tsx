@@ -1,17 +1,17 @@
-import ProfileNameOrHandle from '@components/Shared/ProfileNameOrHandle';
-import type { Profile } from 'lens';
-import type { FC, ReactNode } from 'react';
+import FallbackProfileName from "@components/Shared/FallbackProfileName";
+import type { Profile } from "@hey/lens";
+import type { FC, ReactNode } from "react";
 
 interface ProfileCirclesProps {
-  profiles: Profile[];
   context?: string;
+  profiles: Profile[];
 }
 
-const Profiles: FC<ProfileCirclesProps> = ({ profiles, context }) => {
-  const Wrapper = ({ children }: { children: ReactNode }) => (
+const Profiles: FC<ProfileCirclesProps> = ({ context, profiles }) => {
+  const Wrapper: FC<{ children: ReactNode }> = ({ children }) => (
     <>
       {children}
-      {context ? <span>{context}</span> : null}
+      {context && <span> {context}</span>}
     </>
   );
 
@@ -19,37 +19,46 @@ const Profiles: FC<ProfileCirclesProps> = ({ profiles, context }) => {
   const profileTwo = profiles[1];
   const profileThree = profiles[2];
 
-  if (profiles?.length === 1) {
+  if (profiles.length === 1) {
     return (
       <Wrapper>
-        <ProfileNameOrHandle profile={profileOne} />
+        <FallbackProfileName profile={profileOne} />
       </Wrapper>
     );
   }
 
-  if (profiles?.length === 2) {
+  const andSep = " and ";
+
+  if (profiles.length === 2) {
     return (
       <Wrapper>
-        <ProfileNameOrHandle profile={profileOne} separator="and" />
-        <ProfileNameOrHandle profile={profileTwo} />
+        <FallbackProfileName profile={profileOne} separator={andSep} />
+        <FallbackProfileName profile={profileTwo} />
       </Wrapper>
     );
   }
 
-  if (profiles?.length >= 3) {
-    const calculatedCount = profiles.length - 3;
-    const isZero = calculatedCount === 0;
+  if (profiles.length >= 3) {
+    const additionalCount = profiles.length - 3;
 
     return (
       <Wrapper>
-        <ProfileNameOrHandle profile={profileOne} separator=", " />
-        <ProfileNameOrHandle profile={profileTwo} separator={isZero ? ' and ' : ', '} />
-        <ProfileNameOrHandle profile={profileThree} />
-        {!isZero && (
-          <span className="whitespace-nowrap">
-            and {calculatedCount} {calculatedCount === 1 ? 'other' : 'others'}
-          </span>
-        )}
+        <FallbackProfileName profile={profileOne} separator=", " />
+        <FallbackProfileName
+          profile={profileTwo}
+          separator={additionalCount === 0 ? andSep : ", "}
+        />
+        <FallbackProfileName
+          profile={profileThree}
+          separator={
+            additionalCount > 0 && (
+              <span className="whitespace-nowrap">
+                {andSep}
+                {additionalCount} {additionalCount === 1 ? "other" : "others"}
+              </span>
+            )
+          }
+        />
       </Wrapper>
     );
   }

@@ -1,24 +1,29 @@
-import Link from 'next/link';
-import type { FC } from 'react';
-import { useAppStore } from 'src/store/app';
+import Link from "next/link";
+import type { FC } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import LoginButton from "../LoginButton";
+import SignedProfile from "./SignedProfile";
+import SignupButton from "./SignupButton";
 
-import LoginButton from './LoginButton';
-import SignedUser from './SignedUser';
-
-export const NextLink = ({ href, children, ...rest }: Record<string, any>) => (
+export const NextLink = ({ children, href, ...rest }: Record<string, any>) => (
   <Link href={href} {...rest}>
     {children}
   </Link>
 );
 
 const MenuItems: FC = () => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
+  const { currentProfile } = useProfileStore();
 
-  if (!currentProfile) {
-    return <LoginButton />;
+  if (currentProfile) {
+    return <SignedProfile />;
   }
 
-  return <SignedUser />;
+  return (
+    <div className="flex items-center space-x-2">
+      <SignupButton />
+      <LoginButton />
+    </div>
+  );
 };
 
 export default MenuItems;

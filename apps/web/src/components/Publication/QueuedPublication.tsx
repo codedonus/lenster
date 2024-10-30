@@ -1,110 +1,86 @@
-import Attachments from '@components/Shared/Attachments';
-import IFramely from '@components/Shared/IFramely';
-import Markup from '@components/Shared/Markup';
-import UserProfile from '@components/Shared/UserProfile';
-import { t } from '@lingui/macro';
-import type { Profile } from 'lens';
+import Markup from "@components/Shared/Markup";
+import SmallSingleProfile from "@components/Shared/SmallSingleProfile";
+import getMentions from "@hey/helpers/getMentions";
+import type { Profile } from "@hey/lens";
 import {
+  LensTransactionStatusType,
   PublicationDocument,
-  PublicationMetadataStatusType,
-  useHasTxHashBeenIndexedQuery,
+  useLensTransactionStatusQuery,
   usePublicationLazyQuery
-} from 'lens';
-import { useApolloClient } from 'lens/apollo';
-import getURLs from 'lib/getURLs';
-import type { FC } from 'react';
-import { useAppStore } from 'src/store/app';
-import { useTransactionPersistStore } from 'src/store/transaction';
-import type { OptimisticTransaction } from 'src/types';
-import { Tooltip } from 'ui';
+} from "@hey/lens";
+import { useApolloClient } from "@hey/lens/apollo";
+import type { OptimisticTransaction } from "@hey/types/misc";
+import { Card, Tooltip } from "@hey/ui";
+import type { FC } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
 
 interface QueuedPublicationProps {
   txn: OptimisticTransaction;
 }
 
 const QueuedPublication: FC<QueuedPublicationProps> = ({ txn }) => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const txnQueue = useTransactionPersistStore((state) => state.txnQueue);
-  const setTxnQueue = useTransactionPersistStore((state) => state.setTxnQueue);
+  const { currentProfile } = useProfileStore();
+
   const { cache } = useApolloClient();
   const txHash = txn?.txHash;
   const txId = txn?.txId;
 
-  const removeTxn = () => {
-    if (txHash) {
-      setTxnQueue(txnQueue.filter((o) => o.txHash !== txHash));
-    } else {
-      setTxnQueue(txnQueue.filter((o) => o.txId !== txId));
-    }
-  };
-
   const [getPublication] = usePublicationLazyQuery({
-    onCompleted: (data) => {
-      if (data?.publication) {
+    onCompleted: ({ publication }) => {
+      if (publication) {
         cache.modify({
           fields: {
-            publications() {
-              cache.writeQuery({ data: data?.publication as any, query: PublicationDocument });
+            publications: () => {
+              cache.writeQuery({
+                data: publication,
+                query: PublicationDocument
+              });
             }
           }
         });
-        removeTxn();
       }
     }
   });
 
-  useHasTxHashBeenIndexedQuery({
-    variables: { request: { txHash, txId } },
+  useLensTransactionStatusQuery({
+    notifyOnNetworkStatusChange: true,
+    onCompleted: async ({ lensTransactionStatus }) => {
+      if (
+        lensTransactionStatus?.status === LensTransactionStatusType.Complete &&
+        txn.commentOn
+      ) {
+        await getPublication({
+          variables: { request: { forTxHash: lensTransactionStatus.txHash } }
+        });
+      }
+    },
     pollInterval: 1000,
-    onCompleted: (data) => {
-      if (data.hasTxHashBeenIndexed.__typename === 'TransactionError') {
-        return removeTxn();
-      }
-
-      if (data.hasTxHashBeenIndexed.__typename === 'TransactionIndexedResult') {
-        const status = data.hasTxHashBeenIndexed.metadataStatus?.status;
-
-        if (
-          status === PublicationMetadataStatusType.MetadataValidationFailed ||
-          status === PublicationMetadataStatusType.NotFound
-        ) {
-          return removeTxn();
-        }
-
-        if (data.hasTxHashBeenIndexed.indexed) {
-          getPublication({
-            variables: {
-              request: { txHash: data.hasTxHashBeenIndexed.txHash },
-              reactionRequest: currentProfile ? { profileId: currentProfile?.id } : null,
-              profileId: currentProfile?.id ?? null
-            }
-          });
-        }
+    variables: {
+      request: {
+        ...(txHash && { forTxHash: txHash }),
+        ...(txId && { forTxId: txId })
       }
     }
   });
+
+  if (!txn.content) {
+    return null;
+  }
 
   return (
-    <article className="p-5">
+    <Card as="article" className="p-5">
       <div className="flex items-start justify-between pb-4">
-        <UserProfile profile={currentProfile as Profile} />
-        <Tooltip content={t`Indexing`} placement="top">
-          <div className="bg-brand-200 flex h-4 w-4 items-center justify-center rounded-full">
-            <div className="bg-brand-500 h-2 w-2 animate-pulse rounded-full" />
+        <SmallSingleProfile linkToProfile profile={currentProfile as Profile} />
+        <Tooltip content="Indexing" placement="top">
+          <div className="flex size-4 items-center justify-center rounded-full bg-gray-200">
+            <div className="size-2 animate-shimmer rounded-full bg-gray-500" />
           </div>
         </Tooltip>
       </div>
-      <div className="ml-[53px]">
-        <div className="markup linkify text-md break-words">
-          <Markup>{txn?.content}</Markup>
-        </div>
-        {txn?.attachments?.length > 0 ? (
-          <Attachments attachments={txn?.attachments} txn={txn} isNew hideDelete />
-        ) : (
-          txn?.attachments && getURLs(txn?.content)?.length > 0 && <IFramely url={getURLs(txn?.content)[0]} />
-        )}
+      <div className="markup linkify break-words text-md">
+        <Markup mentions={getMentions(txn.content)}>{txn.content}</Markup>
       </div>
-    </article>
+    </Card>
   );
 };
 

@@ -1,26 +1,30 @@
-import MetaTags from '@components/Common/MetaTags';
-import { HomeIcon } from '@heroicons/react/outline';
-import { Trans } from '@lingui/macro';
-import { APP_NAME, STATIC_IMAGES_URL } from 'data/constants';
-import Link from 'next/link';
-import type { FC } from 'react';
-import { Button } from 'ui';
+import MetaTags from "@components/Common/MetaTags";
+import { HomeIcon } from "@heroicons/react/24/outline";
+import { APP_NAME, STATIC_IMAGES_URL } from "@hey/data/constants";
+import { Button, H2 } from "@hey/ui";
+import Link from "next/link";
+import type { FC } from "react";
 
 const Custom404: FC = () => {
   return (
     <div className="page-center flex-col">
       <MetaTags title={`404 • ${APP_NAME}`} />
-      <img src={`${STATIC_IMAGES_URL}/gifs/nyan-cat.gif`} alt="Nyan Cat" className="h-60" height={240} />
+      <img
+        alt="Nyan Cat"
+        className="h-60"
+        height={240}
+        src={`${STATIC_IMAGES_URL}/gifs/nyan-cat.gif`}
+      />
       <div className="py-10 text-center">
-        <h1 className="mb-4 text-3xl font-bold">
-          <Trans>Oops, Lost‽</Trans>
-        </h1>
-        <div className="mb-4">
-          <Trans>This page could not be found.</Trans>
-        </div>
+        <H2 className="mb-4">Oops, Lost‽</H2>
+        <div className="mb-4">This page could not be found.</div>
         <Link href="/">
-          <Button className="item-center mx-auto flex" size="lg" icon={<HomeIcon className="h-4 w-4" />}>
-            <Trans>Go to home</Trans>
+          <Button
+            className="mx-auto flex items-center"
+            icon={<HomeIcon className="size-4" />}
+            size="lg"
+          >
+            Go to home
           </Button>
         </Link>
       </div>

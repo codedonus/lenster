@@ -1,35 +1,46 @@
-import ToggleWithHelper from '@components/Shared/ToggleWithHelper';
-import { StarIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
-import type { FC } from 'react';
-import { useCollectModuleStore } from 'src/store/collect-module';
-import { Input } from 'ui';
+import ToggleWithHelper from "@components/Shared/ToggleWithHelper";
+import { StarIcon } from "@heroicons/react/24/outline";
+import type { CollectModuleType } from "@hey/types/hey";
+import { Input } from "@hey/ui";
+import type { FC } from "react";
+import { useCollectModuleStore } from "src/store/non-persisted/publication/useCollectModuleStore";
 
-const CollectLimitConfig: FC = () => {
-  const collectLimit = useCollectModuleStore((state) => state.collectLimit);
-  const setCollectLimit = useCollectModuleStore((state) => state.setCollectLimit);
+interface CollectLimitConfigProps {
+  setCollectType: (data: CollectModuleType) => void;
+}
+
+const CollectLimitConfig: FC<CollectLimitConfigProps> = ({
+  setCollectType
+}) => {
+  const { collectModule } = useCollectModuleStore((state) => state);
 
   return (
-    <div className="pt-5">
+    <div className="mt-5">
       <ToggleWithHelper
-        on={Boolean(collectLimit)}
-        setOn={() => setCollectLimit(collectLimit ? null : '1')}
-        heading={t`Limited edition`}
-        description={t`Make the collects exclusive`}
-        icon={<StarIcon className="h-4 w-4" />}
+        description="Make collects limited edition"
+        heading="Exclusive content"
+        icon={<StarIcon className="size-5" />}
+        on={Boolean(collectModule.collectLimit)}
+        setOn={() =>
+          setCollectType({
+            collectLimit: collectModule.collectLimit ? null : "1"
+          })
+        }
       />
-      {collectLimit ? (
-        <div className="pt-4 text-sm">
+      {collectModule.collectLimit ? (
+        <div className="mt-4 ml-8 text-sm">
           <Input
-            label={t`Collect limit`}
-            type="number"
-            placeholder="5"
-            min="1"
+            label="Collect limit"
             max="100000"
-            value={parseFloat(collectLimit)}
+            min="1"
             onChange={(event) => {
-              setCollectLimit(event.target.value ? event.target.value : '1');
+              setCollectType({
+                collectLimit: event.target.value ? event.target.value : "1"
+              });
             }}
+            placeholder="5"
+            type="number"
+            value={collectModule.collectLimit}
           />
         </div>
       ) : null}

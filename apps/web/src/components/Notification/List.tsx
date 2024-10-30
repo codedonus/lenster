@@ -1,83 +1,81 @@
-import { BellIcon } from '@heroicons/react/outline';
-import { t } from '@lingui/macro';
+import { BellIcon } from "@heroicons/react/24/outline";
+import { NotificationTabType } from "@hey/data/enums";
 import type {
-  NewCollectNotification,
-  NewCommentNotification,
-  NewFollowerNotification,
-  NewMentionNotification,
-  NewMirrorNotification,
-  NewReactionNotification,
-  NotificationRequest
-} from 'lens';
-import { CustomFiltersTypes, NotificationTypes, useNotificationsQuery } from 'lens';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useInView } from 'react-cool-inview';
-import { NotificationType } from 'src/enums';
-import { useAppStore } from 'src/store/app';
-import { Card, EmptyState, ErrorMessage } from 'ui';
-
-import NotificationShimmer from './Shimmer';
-import CollectNotification from './Type/CollectNotification';
-import CommentNotification from './Type/CommentNotification';
-import FollowerNotification from './Type/FollowerNotification';
-import LikeNotification from './Type/LikeNotification';
-import MentionNotification from './Type/MentionNotification';
-import MirrorNotification from './Type/MirrorNotification';
+  ActedNotification as ActedNotificationType,
+  CommentNotification as CommentNotificationType,
+  FollowNotification as FollowNotificationType,
+  MentionNotification as MentionNotificationType,
+  MirrorNotification as MirrorNotificationType,
+  NotificationRequest,
+  QuoteNotification as QuoteNotificationType,
+  ReactionNotification as ReactionNotificationType
+} from "@hey/lens";
+import {
+  CustomFiltersType,
+  NotificationType,
+  useNotificationsQuery
+} from "@hey/lens";
+import { Card, EmptyState, ErrorMessage } from "@hey/ui";
+import cn from "@hey/ui/cn";
+import type { FC } from "react";
+import { Virtuoso } from "react-virtuoso";
+import { usePreferencesStore } from "src/store/non-persisted/usePreferencesStore";
+import NotificationShimmer from "./Shimmer";
+import ActedNotification from "./Type/ActedNotification";
+import CommentNotification from "./Type/CommentNotification";
+import FollowNotification from "./Type/FollowNotification";
+import MentionNotification from "./Type/MentionNotification";
+import MirrorNotification from "./Type/MirrorNotification";
+import QuoteNotification from "./Type/QuoteNotification";
+import ReactionNotification from "./Type/ReactionNotification";
 
 interface ListProps {
   feedType: string;
 }
 
 const List: FC<ListProps> = ({ feedType }) => {
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const [hasMore, setHasMore] = useState(true);
+  const { highSignalNotificationFilter } = usePreferencesStore();
 
   const getNotificationType = () => {
     switch (feedType) {
-      case NotificationType.All:
+      case NotificationTabType.All:
         return;
-      case NotificationType.Mentions:
-        return [NotificationTypes.MentionPost, NotificationTypes.MentionComment];
-      case NotificationType.Comments:
-        return [NotificationTypes.CommentedPost, NotificationTypes.CommentedComment];
-      case NotificationType.Likes:
-        return [NotificationTypes.ReactionPost, NotificationTypes.ReactionComment];
-      case NotificationType.Collects:
-        return [NotificationTypes.CollectedPost, NotificationTypes.CollectedComment];
+      case NotificationTabType.Mentions:
+        return [NotificationType.Mentioned];
+      case NotificationTabType.Comments:
+        return [NotificationType.Commented];
+      case NotificationTabType.Likes:
+        return [NotificationType.Reacted];
+      case NotificationTabType.Collects:
+        return [NotificationType.Acted];
       default:
         return;
     }
   };
 
-  // Variables
   const request: NotificationRequest = {
-    profileId: currentProfile?.id,
-    customFilters: [CustomFiltersTypes.Gardeners],
-    notificationTypes: getNotificationType(),
-    limit: 20
+    where: {
+      customFilters: [CustomFiltersType.Gardeners],
+      highSignalFilter: highSignalNotificationFilter,
+      notificationTypes: getNotificationType()
+    }
   };
 
-  const { data, loading, error, fetchMore } = useNotificationsQuery({
+  const { data, error, fetchMore, loading } = useNotificationsQuery({
     variables: { request }
   });
 
   const notifications = data?.notifications?.items;
   const pageInfo = data?.notifications?.pageInfo;
+  const hasMore = !!pageInfo?.next;
 
-  const { observe } = useInView({
-    onChange: async ({ inView }) => {
-      if (!inView || !hasMore) {
-        return;
-      }
-
+  const onEndReached = async () => {
+    if (hasMore) {
       await fetchMore({
-        variables: { request: { ...request, cursor: pageInfo?.next } }
-      }).then(({ data }) => {
-        setHasMore(data?.notifications?.items?.length > 0);
+        variables: { request: { ...request, cursor: pageInfo.next } }
       });
     }
-  });
+  };
 
   if (loading) {
     return (
@@ -91,47 +89,70 @@ const List: FC<ListProps> = ({ feedType }) => {
   }
 
   if (error) {
-    return <ErrorMessage className="m-3" title={t`Failed to load notifications`} error={error} />;
+    return <ErrorMessage error={error} title="Failed to load notifications" />;
   }
 
   if (notifications?.length === 0) {
     return (
-      <EmptyState message={t`Inbox zero!`} icon={<BellIcon className="text-brand h-8 w-8" />} hideCard />
+      <EmptyState
+        icon={<BellIcon className="size-8" />}
+        message="Inbox zero!"
+      />
     );
   }
 
   return (
-    <Card className="divide-y dark:divide-gray-700">
-      {notifications?.map((notification, index, items) => {
-        const isLast = index === items.length - 1;
-
-        return (
+    <Card>
+      <Virtuoso
+        className="virtual-notification-list"
+        computeItemKey={(index, notification) => `${notification.id}-${index}`}
+        data={notifications}
+        endReached={onEndReached}
+        itemContent={(_, notification) => (
           <div
-            key={`${notification?.notificationId}_${index}`}
-            className="p-5"
-            ref={isLast ? observe : undefined}
+            className={cn({
+              "p-5": notification.__typename !== "FollowNotification"
+            })}
           >
-            {notification.__typename === 'NewFollowerNotification' && (
-              <FollowerNotification notification={notification as NewFollowerNotification} />
+            {notification.__typename === "FollowNotification" && (
+              <FollowNotification
+                notification={notification as FollowNotificationType}
+              />
             )}
-            {notification.__typename === 'NewMentionNotification' && (
-              <MentionNotification notification={notification as NewMentionNotification} />
+            {notification.__typename === "MentionNotification" && (
+              <MentionNotification
+                notification={notification as MentionNotificationType}
+              />
             )}
-            {notification.__typename === 'NewReactionNotification' && (
-              <LikeNotification notification={notification as NewReactionNotification} />
+            {notification.__typename === "ReactionNotification" && (
+              <ReactionNotification
+                notification={notification as ReactionNotificationType}
+              />
             )}
-            {notification.__typename === 'NewCommentNotification' && (
-              <CommentNotification notification={notification as NewCommentNotification} />
+            {notification.__typename === "CommentNotification" && (
+              <CommentNotification
+                notification={notification as CommentNotificationType}
+              />
             )}
-            {notification.__typename === 'NewMirrorNotification' && (
-              <MirrorNotification notification={notification as NewMirrorNotification} />
+            {notification.__typename === "MirrorNotification" && (
+              <MirrorNotification
+                notification={notification as MirrorNotificationType}
+              />
             )}
-            {notification.__typename === 'NewCollectNotification' && (
-              <CollectNotification notification={notification as NewCollectNotification} />
+            {notification.__typename === "QuoteNotification" && (
+              <QuoteNotification
+                notification={notification as QuoteNotificationType}
+              />
+            )}
+            {notification.__typename === "ActedNotification" && (
+              <ActedNotification
+                notification={notification as ActedNotificationType}
+              />
             )}
           </div>
-        );
-      })}
+        )}
+        useWindowScroll
+      />
     </Card>
   );
 };

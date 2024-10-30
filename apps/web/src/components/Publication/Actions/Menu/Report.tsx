@@ -1,37 +1,37 @@
-import { Menu } from '@headlessui/react';
-import { ShieldExclamationIcon } from '@heroicons/react/outline';
-import clsx from 'clsx';
-import type { Publication } from 'lens';
-import { stopEventPropagation } from 'lib/stopEventPropagation';
-import type { FC } from 'react';
-import { useGlobalModalStateStore } from 'src/store/modals';
+import { MenuItem } from "@headlessui/react";
+import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import stopEventPropagation from "@hey/helpers/stopEventPropagation";
+import type { MirrorablePublication } from "@hey/lens";
+import cn from "@hey/ui/cn";
+import type { FC } from "react";
+import { useGlobalModalStateStore } from "src/store/non-persisted/useGlobalModalStateStore";
 
 interface ReportProps {
-  publication: Publication;
+  publication: MirrorablePublication;
 }
 
 const Report: FC<ReportProps> = ({ publication }) => {
-  const setShowReportModal = useGlobalModalStateStore((state) => state.setShowReportModal);
+  const { setShowPublicationReportModal } = useGlobalModalStateStore();
 
   return (
-    <Menu.Item
+    <MenuItem
       as="div"
-      className={({ active }) =>
-        clsx(
-          { 'dropdown-active': active },
-          'm-2 block cursor-pointer rounded-lg px-4 py-1.5 text-sm text-red-500'
+      className={({ focus }) =>
+        cn(
+          { "dropdown-active": focus },
+          "m-2 block cursor-pointer rounded-lg px-2 py-1.5 text-red-500 text-sm"
         )
       }
       onClick={(event) => {
         stopEventPropagation(event);
-        setShowReportModal(true, publication);
+        setShowPublicationReportModal(true, publication.id);
       }}
     >
       <div className="flex items-center space-x-2">
-        <ShieldExclamationIcon className="h-4 w-4" />
-        <div>Report Post</div>
+        <ExclamationTriangleIcon className="size-4" />
+        <div>Report post</div>
       </div>
-    </Menu.Item>
+    </MenuItem>
   );
 };
 

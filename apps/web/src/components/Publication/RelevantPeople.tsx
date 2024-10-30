@@ -1,56 +1,46 @@
-import UserProfileShimmer from '@components/Shared/Shimmer/UserProfileShimmer';
-import UserProfile from '@components/Shared/UserProfile';
-import { t } from '@lingui/macro';
-import { ALL_HANDLES_REGEX, HANDLE_SANITIZE_REGEX } from 'data/constants';
-import type { Profile, Publication } from 'lens';
-import { useRelevantPeopleQuery } from 'lens';
-import formatHandle from 'lib/formatHandle';
-import type { FC } from 'react';
-import { FollowSource } from 'src/tracking';
-import { Card, ErrorMessage } from 'ui';
+import SingleProfileShimmer from "@components/Shared/Shimmer/SingleProfileShimmer";
+import SingleProfile from "@components/Shared/SingleProfile";
+import { ProfileLinkSource } from "@hey/data/tracking";
+import type { Profile, ProfileMentioned } from "@hey/lens";
+import { useProfilesQuery } from "@hey/lens";
+import { Card, ErrorMessage, Modal } from "@hey/ui";
+import type { FC } from "react";
+import { useState } from "react";
+import { useProfileStore } from "src/store/persisted/useProfileStore";
+import MoreRelevantPeople from "./MoreRelevantPeople";
 
 interface RelevantPeopleProps {
-  publication: Publication;
+  profilesMentioned: ProfileMentioned[];
 }
 
-const RelevantPeople: FC<RelevantPeopleProps> = ({ publication }) => {
-  const mentions = publication?.metadata?.content?.match(ALL_HANDLES_REGEX, '$1[~$2]') ?? [];
+const RelevantPeople: FC<RelevantPeopleProps> = ({ profilesMentioned }) => {
+  const { currentProfile } = useProfileStore();
+  const [showMore, setShowMore] = useState(false);
 
-  const processedMentions = mentions.map((mention: string) => {
-    const trimmedMention = mention.trim().replace('@', '').replace("'s", '');
+  const profileIds = profilesMentioned.map(
+    (profile) => profile.snapshotHandleMentioned.linkedTo?.nftTokenId
+  );
 
-    if (trimmedMention.length > 9) {
-      return mention.trim().replace("'s", '').replace(HANDLE_SANITIZE_REGEX, '');
-    }
-
-    return formatHandle(publication?.profile?.handle);
+  const { data, error, loading } = useProfilesQuery({
+    skip: profileIds.length <= 0,
+    variables: { request: { where: { profileIds } } }
   });
 
-  const cleanedMentions = processedMentions.reduce((handles: string[], handle: string) => {
-    if (!handles.includes(handle)) {
-      handles.push(handle);
-    }
-
-    return handles;
-  }, []);
-
-  const { data, loading, error } = useRelevantPeopleQuery({
-    variables: { request: { handles: cleanedMentions.slice(0, 5) } },
-    skip: mentions.length <= 0
-  });
-
-  if (mentions.length <= 0) {
+  if (profileIds.length <= 0) {
     return null;
   }
 
   if (loading) {
     return (
       <Card as="aside" className="space-y-4 p-5">
-        <UserProfileShimmer showFollow />
-        <UserProfileShimmer showFollow />
-        <UserProfileShimmer showFollow />
-        <UserProfileShimmer showFollow />
-        <UserProfileShimmer showFollow />
+        <SingleProfileShimmer showFollowUnfollowButton />
+        <SingleProfileShimmer showFollowUnfollowButton />
+        <SingleProfileShimmer showFollowUnfollowButton />
+        <SingleProfileShimmer showFollowUnfollowButton />
+        <SingleProfileShimmer showFollowUnfollowButton />
+        <div className="pt-2 pb-1">
+          <div className="shimmer h-3 w-5/12 rounded-full" />
+        </div>
       </Card>
     );
   }
@@ -59,22 +49,41 @@ const RelevantPeople: FC<RelevantPeopleProps> = ({ publication }) => {
     return null;
   }
 
+  const firstProfiles = data?.profiles?.items?.slice(0, 5);
+
   return (
-    <Card as="aside" className="space-y-4 p-5" dataTestId="relevant-profiles">
-      <ErrorMessage title={t`Failed to load relevant people`} error={error} />
-      {data?.profiles?.items?.map((profile, index) => (
-        <div key={profile?.id} className="truncate">
-          <UserProfile
-            profile={profile as Profile}
-            isFollowing={profile.isFollowedByMe}
-            followPosition={index + 1}
-            followSource={FollowSource.PUBLICATION_RELEVANT_PROFILES}
-            showUserPreview={false}
-            showFollow
-          />
-        </div>
-      ))}
-    </Card>
+    <>
+      <Card as="aside" className="space-y-4 p-5">
+        <ErrorMessage error={error} title="Failed to load relevant people" />
+        {firstProfiles?.map((profile) => (
+          <div className="truncate" key={profile?.id}>
+            <SingleProfile
+              hideFollowButton={currentProfile?.id === profile.id}
+              hideUnfollowButton={currentProfile?.id === profile.id}
+              profile={profile as Profile}
+              showUserPreview={false}
+              source={ProfileLinkSource.RelevantPeople}
+            />
+          </div>
+        ))}
+        {(data?.profiles?.items?.length || 0) > 5 && (
+          <button
+            className="ld-text-gray-500 font-bold"
+            onClick={() => setShowMore(true)}
+            type="button"
+          >
+            Show more
+          </button>
+        )}
+      </Card>
+      <Modal
+        onClose={() => setShowMore(false)}
+        show={showMore}
+        title="Relevant people"
+      >
+        <MoreRelevantPeople profiles={data?.profiles?.items as Profile[]} />
+      </Modal>
+    </>
   );
 };
 

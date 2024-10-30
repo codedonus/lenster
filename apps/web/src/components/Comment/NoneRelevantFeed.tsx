@@ -1,56 +1,71 @@
-import SinglePublication from '@components/Publication/SinglePublication';
-import { Trans } from '@lingui/macro';
-import type { Comment, Publication, PublicationsQueryRequest } from 'lens';
-import { CommentOrderingTypes, CommentRankingFilter, CustomFiltersTypes, useCommentFeedQuery } from 'lens';
-import type { FC } from 'react';
-import { useState } from 'react';
-import { useInView } from 'react-cool-inview';
-import { useAppStore } from 'src/store/app';
-import { Card } from 'ui';
+import { useHiddenCommentFeedStore } from "@components/Publication";
+import SinglePublication from "@components/Publication/SinglePublication";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import getAvatar from "@hey/helpers/getAvatar";
+import type { Comment, PublicationsRequest } from "@hey/lens";
+import {
+  CommentRankingFilterType,
+  CustomFiltersType,
+  HiddenCommentsType,
+  LimitType,
+  usePublicationsQuery
+} from "@hey/lens";
+import { Card, StackedAvatars } from "@hey/ui";
+import type { FC } from "react";
+import { useState } from "react";
+import { Virtuoso } from "react-virtuoso";
+import { useImpressionsStore } from "src/store/non-persisted/useImpressionsStore";
+import { useTipsStore } from "src/store/non-persisted/useTipsStore";
 
 interface NoneRelevantFeedProps {
-  publication?: Publication;
+  publicationId: string;
 }
 
-const NoneRelevantFeed: FC<NoneRelevantFeedProps> = ({ publication }) => {
-  const publicationId = publication?.__typename === 'Mirror' ? publication?.mirrorOf?.id : publication?.id;
-  const currentProfile = useAppStore((state) => state.currentProfile);
-  const [hasMore, setHasMore] = useState(true);
+const NoneRelevantFeed: FC<NoneRelevantFeedProps> = ({ publicationId }) => {
+  const { showHiddenComments } = useHiddenCommentFeedStore();
   const [showMore, setShowMore] = useState(false);
+  const { fetchAndStoreViews } = useImpressionsStore();
+  const { fetchAndStoreTips } = useTipsStore();
 
-  // Variables
-  const request: PublicationsQueryRequest = {
-    commentsOf: publicationId,
-    customFilters: [CustomFiltersTypes.Gardeners],
-    commentsOfOrdering: CommentOrderingTypes.Ranking,
-    commentsRankingFilter: CommentRankingFilter.NoneRelevant,
-    limit: 30
+  const request: PublicationsRequest = {
+    limit: LimitType.TwentyFive,
+    where: {
+      commentOn: {
+        hiddenComments: showHiddenComments
+          ? HiddenCommentsType.HiddenOnly
+          : HiddenCommentsType.Hide,
+        id: publicationId,
+        ranking: { filter: CommentRankingFilterType.NoneRelevant }
+      },
+      customFilters: [CustomFiltersType.Gardeners]
+    }
   };
-  const reactionRequest = currentProfile ? { profileId: currentProfile?.id } : null;
-  const profileId = currentProfile?.id ?? null;
 
-  const { data, fetchMore } = useCommentFeedQuery({
-    variables: { request, reactionRequest, profileId },
-    skip: !publicationId
+  const { data, fetchMore } = usePublicationsQuery({
+    onCompleted: async ({ publications }) => {
+      const ids = publications?.items?.map((p) => p.id) || [];
+      await fetchAndStoreViews(ids);
+      await fetchAndStoreTips(ids);
+    },
+    skip: !publicationId,
+    variables: { request }
   });
 
   const comments = data?.publications?.items ?? [];
   const pageInfo = data?.publications?.pageInfo;
+  const hasMore = pageInfo?.next;
   const totalComments = comments?.length;
 
-  const { observe } = useInView({
-    onChange: async ({ inView }) => {
-      if (!inView || !hasMore) {
-        return;
-      }
-
-      await fetchMore({
-        variables: { request: { ...request, cursor: pageInfo?.next }, reactionRequest, profileId }
-      }).then(({ data }) => {
-        setHasMore(data?.publications?.items?.length > 0);
+  const onEndReached = async () => {
+    if (hasMore) {
+      const { data } = await fetchMore({
+        variables: { request: { ...request, cursor: pageInfo?.next } }
       });
+      const ids = data?.publications?.items?.map((p) => p.id) || [];
+      await fetchAndStoreViews(ids);
+      await fetchAndStoreTips(ids);
     }
-  });
+  };
 
   if (totalComments === 0) {
     return null;
@@ -59,26 +74,50 @@ const NoneRelevantFeed: FC<NoneRelevantFeedProps> = ({ publication }) => {
   return (
     <>
       <Card
-        className="cursor-pointer p-5 text-center"
+        className="flex cursor-pointer items-center justify-center space-x-2.5 p-5"
         onClick={() => {
           setShowMore(!showMore);
         }}
-        dataTestId="none-relevant-feed"
       >
-        {showMore ? <Trans>Hide more comments</Trans> : <Trans>Show more comments</Trans>}
+        <StackedAvatars
+          avatars={comments.map((comment) => getAvatar(comment.by))}
+          limit={5}
+        />
+        <div>{showMore ? "Hide more comments" : "Show more comments"}</div>
+        {showMore ? (
+          <ChevronUpIcon className="size-4" />
+        ) : (
+          <ChevronDownIcon className="size-4" />
+        )}
       </Card>
       {showMore ? (
-        <Card className="divide-y-[1px] dark:divide-gray-700">
-          {comments?.map((comment, index) =>
-            comment?.__typename === 'Comment' && comment.hidden ? null : (
-              <SinglePublication
-                key={`${publicationId}_${index}`}
-                publication={comment as Comment}
-                showType={false}
-              />
-            )
-          )}
-          {hasMore && <span ref={observe} />}
+        <Card>
+          <Virtuoso
+            className="virtual-divider-list-window"
+            computeItemKey={(index, comment) =>
+              `${publicationId}-${comment.id}-${index}`
+            }
+            data={comments}
+            endReached={onEndReached}
+            itemContent={(index, comment) => {
+              if (comment.__typename !== "Comment" || comment.isHidden) {
+                return null;
+              }
+
+              const isFirst = index === 0;
+              const isLast = index === comments.length - 1;
+
+              return (
+                <SinglePublication
+                  isFirst={isFirst}
+                  isLast={isLast}
+                  publication={comment as Comment}
+                  showType={false}
+                />
+              );
+            }}
+            useWindowScroll
+          />
         </Card>
       ) : null}
     </>

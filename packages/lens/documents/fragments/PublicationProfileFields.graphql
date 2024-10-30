@@ -1,0 +1,15 @@
+fragment PublicationProfileFields on Profile {
+  id
+  handle {
+    ...HandleInfoFields
+  }
+  operations {
+    ...ProfileOperationsFields
+  }
+  ownedBy {
+    ...NetworkAddressFields
+  }
+  metadata {
+    ...ProfileMetadataFields
+  }
+}
